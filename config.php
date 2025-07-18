@@ -3,7 +3,14 @@
 // WireGuard Admin Configuration
 // Professional VPN Management System
 
-// Database
+// MySQL Database Configuration
+define('DB_HOST', 'localhost');
+define('DB_NAME', 'wireguard_admin');
+define('DB_USER', 'root');
+define('DB_PASS', '');
+define('DB_PORT', 3306);
+
+// Legacy SQLite path (kept for migration purposes)
 define('DB_PATH', __DIR__ . '/data/wg-admin.db');
 
 // WireGuard Settings
