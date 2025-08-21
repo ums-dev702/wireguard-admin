@@ -70,6 +70,14 @@ sudo yum install php php-cli php-fpm php-pdo php-sqlite3 php-curl php-json php-m
 
 ### Step 2: Web Server Setup
 
+ Set Ownership and Permissions
+--------------------------------
+
+```bash
+sudo chown -R www-data:www-data /var/www/html/wireguard-admin
+sudo chmod -R 755 /var/www/html/wireguard-admin
+```
+
 #### Apache Configuration
 ```bash
 # Install Apache
@@ -80,121 +88,115 @@ sudo yum install httpd -y     # CentOS/RHEL
 sudo a2enmod rewrite ssl headers
 sudo systemctl restart apache2
 ```
+4. Add Virtual Host Config
+--------------------------
 
-**Virtual Host Example** (`/etc/apache2/sites-available/wireguard-admin.conf`):
-```apache
+```bash
+sudo nano /etc/apache2/sites-available/wg.trymysoftware.online.conf
+```
+
+Paste:
+
+```bash
 <VirtualHost *:80>
-    ServerName your-domain.com
+    ServerName wg.trymysoftware.online
+    ServerAdmin webmaster@wg.trymysoftware.online
     DocumentRoot /var/www/html/wireguard-admin
-    
-    <Directory /var/www/html/wireguard-admin>
+
+    <Directory /var/www/html/wireguard-admin/>
+        Options Indexes FollowSymLinks
         AllowOverride All
         Require all granted
     </Directory>
-    
-    # Security headers
-    Header always set X-Content-Type-Options nosniff
-    Header always set X-Frame-Options DENY
-    Header always set X-XSS-Protection "1; mode=block"
-    Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-    
-    ErrorLog ${APACHE_LOG_DIR}/wireguard-admin_error.log
-    CustomLog ${APACHE_LOG_DIR}/wireguard-admin_access.log combined
+
+    ErrorLog ${APACHE_LOG_DIR}/wg_error.log
+    CustomLog ${APACHE_LOG_DIR}/wg_access.log combined
+
+    <IfModule mod_dir.c>
+        DirectoryIndex index.html index.php
+    </IfModule>
 </VirtualHost>
-
-# SSL Configuration (Recommended)
-<IfModule mod_ssl.c>
-    <VirtualHost *:443>
-        ServerName your-domain.com
-        DocumentRoot /var/www/html/wireguard-admin
-        
-        SSLEngine on
-        SSLCertificateFile /path/to/certificate.crt
-        SSLCertificateKeyFile /path/to/private.key
-        
-        <Directory /var/www/html/wireguard-admin>
-            AllowOverride All
-            Require all granted
-        </Directory>
-        
-        # Security headers
-        Header always set X-Content-Type-Options nosniff
-        Header always set X-Frame-Options DENY
-        Header always set X-XSS-Protection "1; mode=block"
-        Header always set Strict-Transport-Security "max-age=31536000; includeSubDomains"
-    </VirtualHost>
-</IfModule>
 ```
 
-#### Nginx Configuration
+5. Enable Site and Modules
+--------------------------
 ```bash
-# Install Nginx
-sudo apt install nginx -y  # Ubuntu/Debian
-sudo yum install nginx -y  # CentOS/RHEL
+sudo a2ensite wg.trymysoftware.online.conf
+sudo a2enmod rewrite
+sudo systemctl reload apache2
 ```
 
-**Server Block Example** (`/etc/nginx/sites-available/wireguard-admin`):
-```nginx
+6. Restart Apache
+-----------------
+```bash
+sudo systemctl restart apache2
+```
+
+7. Enable SSL (Let's Encrypt)
+-----------------------------
+```bash
+sudo certbot --apache -d wg.trymysoftware.online
+sudo certbot --nginx -d wg.trymysoftware.online
+```
+
+
+======================================================
+  NGINX CONFIGURATION
+======================================================
+
+4. Create Server Block
+----------------------
+
+```bash
+sudo nano /etc/nginx/sites-available/wg.trymysoftware.online
+```
+
+Paste:
+
+```bash
 server {
     listen 80;
-    server_name your-domain.com;
+    server_name wg.trymysoftware.online;
+
     root /var/www/html/wireguard-admin;
     index index.php index.html;
-    
+
     location / {
-        try_files $uri $uri/ /index.php?$query_string;
+        try_files $uri $uri/ /index.php?$args;
     }
-    
+
     location ~ \.php$ {
-        fastcgi_pass unix:/var/run/php/php7.4-fpm.sock;
-        fastcgi_index index.php;
+        include snippets/fastcgi-php.conf;
+        fastcgi_pass unix:/run/php/php8.2-fpm.sock;
         fastcgi_param SCRIPT_FILENAME $document_root$fastcgi_script_name;
         include fastcgi_params;
-        
-        # Security
-        fastcgi_hide_header X-Powered-By;
     }
-    
+
     location ~ /\.ht {
         deny all;
     }
-    
-    location ~ /data/ {
-        deny all;
-    }
-    
-    location ~ /classes/ {
-        deny all;
-    }
-    
-    # Security headers
-    add_header X-Content-Type-Options nosniff;
-    add_header X-Frame-Options DENY;
-    add_header X-XSS-Protection "1; mode=block";
-    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains";
-    
-    # Gzip compression
-    gzip on;
-    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
-}
 
-# SSL Configuration (Recommended)
-server {
-    listen 443 ssl http2;
-    server_name your-domain.com;
-    root /var/www/html/wireguard-admin;
-    index index.php index.html;
-    
-    ssl_certificate /path/to/certificate.crt;
-    ssl_certificate_key /path/to/private.key;
-    ssl_protocols TLSv1.2 TLSv1.3;
-    ssl_ciphers ECDHE-RSA-AES256-GCM-SHA512:DHE-RSA-AES256-GCM-SHA512;
-    ssl_prefer_server_ciphers off;
-    
-    # Same location blocks as above...
+    error_log /var/log/nginx/wg_error.log;
+    access_log /var/log/nginx/wg_access.log;
 }
 ```
 
+5. Enable Site
+--------------
+```bash
+sudo ln -s /etc/nginx/sites-available/wg.trymysoftware.online /etc/nginx/sites-enabled/
+sudo nginx -t
+sudo systemctl reload nginx
+
+sudo rm /etc/nginx/sites-available/wg.trymysoftware.online
+sudo rm /etc/nginx/sites-enabled/wg.trymysoftware.online
+```
+
+6. Enable SSL (Let's Encrypt)
+-----------------------------
+```bash
+sudo certbot --nginx -d wg.trymysoftware.online
+```
 ### Step 3: Application Deployment
 
 #### Download and Extract

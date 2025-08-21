@@ -4,7 +4,7 @@ require_once __DIR__ . '/config.php';
 try {
     $db = new \WireGuardAdmin\Database();
     $auth = new \WireGuardAdmin\Auth($db, SESSION_TIMEOUT);
-    $wg = new \WireGuardAdmin\WireGuard($db, WG_IFACE, WG_CONF_PATH);
+    $wg = new \WireGuardAdmin\WireGuard($db, WG_IFACE);
     
     // Check authentication
     $auth->requireAuth('/login.php');

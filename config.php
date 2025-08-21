@@ -1,36 +1,23 @@
 <?php
-
-// WireGuard Admin Configuration
-// Professional VPN Management System
-
-// MySQL Database Configuration
+// Application Settings
+define('APP_NAME', 'WireGuard Admin');
+define('APP_VERSION', '1.0.0');
+define('TIMEZONE', 'UTC');
+define('WG_DEBUG', true);
 define('DB_HOST', 'localhost');
 define('DB_NAME', 'wireguard_admin');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_PORT', 3306);
-
-// Legacy SQLite path (kept for migration purposes)
-define('DB_PATH', __DIR__ . '/data/wg-admin.db');
-
-// WireGuard Settings
-define('WG_CONF_PATH', '/etc/wireguard/wg0.conf');
 define('WG_IFACE', 'wg0');
-
-// Default Server Settings (can be overridden during installation)
 define('SERVER_IP', 'wg-vpn.netxtreme.top');
 define('SERVER_PORT', '51820');
 define('SUBNET', '10.0.0.0/24');
-
 // Security Settings
 define('SESSION_TIMEOUT', 1800); // 30 minutes
 define('ENABLE_LOGGING', true);
 define('MAX_LOGIN_ATTEMPTS', 5);
 
-// Application Settings
-define('APP_NAME', 'WireGuard Admin');
-define('APP_VERSION', '2.0.0');
-define('TIMEZONE', 'UTC');
 
 // Set timezone
 date_default_timezone_set(TIMEZONE);
@@ -54,7 +41,7 @@ spl_autoload_register(function ($class) {
 function getSetting($key, $default = null) {
     static $settings = null;
     
-    if ($settings === null && file_exists(DB_PATH)) {
+    if ($settings === null) {
         try {
             $db = new \WireGuardAdmin\Database();
             $result = $db->select("SELECT key, value FROM settings");

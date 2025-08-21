@@ -1,25 +1,5 @@
 <?php
 require_once __DIR__ . '/config.php';
-
-// Check if installation is complete
-try {
-    if (!file_exists(DB_PATH)) {
-        header("Location: install.php");
-        exit;
-    }
-    
-    $db = new \WireGuardAdmin\Database();
-    $installer = new \WireGuardAdmin\Installer($db);
-    
-    if (!$installer->isInstalled()) {
-        header("Location: install.php");
-        exit;
-    }
-} catch (Exception $e) {
-    header("Location: install.php");
-    exit;
-}
-
 $auth = new \WireGuardAdmin\Auth($db, SESSION_TIMEOUT);
 $error = '';
 $success = '';
@@ -69,7 +49,7 @@ $csrfToken = $auth->generateCSRFToken();
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         .gradient-bg {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+             background: linear-gradient(135deg, #000000 0%, #1a365d 100%);
         }
         
         .glass-effect {
