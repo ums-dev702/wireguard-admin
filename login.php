@@ -13,7 +13,7 @@ try {
     //     exit;
     // }
 
-     $db->createTables();
+     //$db->createTables();
 } catch (Exception $e) {
     header("Location: install.php");
     exit;
