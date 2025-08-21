@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/autoloader.php';
 
 // Check if installation is complete
 try {
@@ -12,7 +13,7 @@ try {
     //     exit;
     // }
 
-     //$db->createTables();
+     $db->createTables();
 } catch (Exception $e) {
     header("Location: install.php");
     exit;
@@ -61,7 +62,8 @@ $csrfToken = $auth->generateCSRFToken();
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    
     <title>Login - <?= APP_NAME ?></title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -149,7 +151,8 @@ $csrfToken = $auth->generateCSRFToken();
         }
     </style>
 </head>
-<body class="gradient-bg min-h-screen relative overflow-hidden">
+<body class="gradient-bg min-h-screen relative overflow-y-auto">
+
     <!-- Animated Particles Background -->
     <div class="particles">
         <div class="particle" style="left: 10%; width: 6px; height: 6px; animation-delay: 0s;"></div>

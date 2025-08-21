@@ -78,7 +78,7 @@ class Database {
     /**
      * Create database tables if they don't exist
      */
-    private function createTables() {
+    public function createTables() {
         $tables = [
             "users" => "
                 CREATE TABLE IF NOT EXISTS {$this->tablePrefix}users (
