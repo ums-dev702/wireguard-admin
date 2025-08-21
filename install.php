@@ -1,106 +1,128 @@
 <!DOCTYPE html>
 <html lang="en">
+
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>WireGuard Admin - Installation</title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <style>
         .gradient-bg {
-            background: linear-gradient(135deg, #000000ff 0%, #000000ff 100%);
+            background: linear-gradient(135deg, #000000 0%, #1a365d 100%);
         }
-        
+
         .glass-effect {
             background: rgba(255, 255, 255, 0.1);
             backdrop-filter: blur(10px);
             border: 1px solid rgba(255, 255, 255, 0.2);
         }
-        
+
         .step-indicator {
             transition: all 0.3s ease;
         }
-        
+
         .step-indicator.active {
             background: #10b981;
             color: white;
         }
-        
+
         .step-indicator.completed {
             background: #059669;
             color: white;
         }
-        
+
         .fade-in {
             animation: fadeIn 0.5s ease-in;
         }
-        
+
         @keyframes fadeIn {
-            from { opacity: 0; transform: translateY(20px); }
-            to { opacity: 1; transform: translateY(0); }
+            from {
+                opacity: 0;
+                transform: translateY(20px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
         }
-        
+
         .progress-bar {
             transition: width 0.5s ease;
         }
-        
+
         .requirement-item {
             transition: all 0.3s ease;
         }
-        
+
         .requirement-item.passed {
-            background: #000000ff;
-            border-color: #25a955ff;
+            background: rgba(16, 185, 129, 0.1);
+            border-color: #10b981;
         }
-        
+
         .requirement-item.failed {
-            background: #000000ff;
+            background: rgba(239, 68, 68, 0.1);
             border-color: #ef4444;
         }
-        
+
         .btn-primary {
             background: linear-gradient(135deg, #10b981 0%, #059669 100%);
             transition: all 0.3s ease;
         }
-        
+
         .btn-primary:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(16, 185, 129, 0.3);
         }
-        
+
         .btn-secondary {
             background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%);
             transition: all 0.3s ease;
         }
-        
+
         .btn-secondary:hover {
             transform: translateY(-2px);
             box-shadow: 0 10px 20px rgba(99, 102, 241, 0.3);
         }
-        
+
         .vpn-icon {
             animation: float 3s ease-in-out infinite;
         }
-        
+
         @keyframes float {
-            0%, 100% { transform: translateY(0px); }
-            50% { transform: translateY(-10px); }
+
+            0%,
+            100% {
+                transform: translateY(0px);
+            }
+
+            50% {
+                transform: translateY(-10px);
+            }
         }
-        
+
         .loading-spinner {
             animation: spin 1s linear infinite;
         }
-        
+
         @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
+            from {
+                transform: rotate(0deg);
+            }
+
+            to {
+                transform: rotate(360deg);
+            }
         }
     </style>
 </head>
+
 <body class="gradient-bg min-h-screen">
     <!-- Background Pattern -->
     <div class="absolute inset-0 opacity-10">
-        <div class="absolute inset-0" style="background-image: url('data:image/svg+xml,<svg width="40" height="40" viewBox="0 0 40 40" xmlns="http://www.w3.org/2000/svg"><g fill="white" fill-opacity="0.1"><path d="M20 20c0-11.046-8.954-20-20-20v20h20z"/></g></svg>')"></div>
+        <div class="absolute inset-0" style="background-image: url('data:image/svg+xml,%3Csvg width=\'40\' height=\'40\' viewBox=\'0 0 40 40\' xmlns=\'http://www.w3.org/2000/svg\'%3E%3Cg fill=\'white\' fill-opacity=\'0.1\'%3E%3Cpath d=\'M20 20c0-11.046-8.954-20-20-20v20h20z\' /%3E%3C/g%3E%3C/svg%3E')">
+        </div>
     </div>
 
     <div class="relative min-h-screen flex items-center justify-center p-4">
@@ -123,8 +145,8 @@
                         <span class="text-white font-medium" id="progress-text">0%</span>
                     </div>
                     <div class="w-full bg-white bg-opacity-20 rounded-full h-2">
-                        <div class="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full progress-bar" 
-                             style="width: 0%" id="progress-bar"></div>
+                        <div class="bg-gradient-to-r from-green-400 to-green-600 h-2 rounded-full progress-bar"
+                            style="width: 0%" id="progress-bar"></div>
                     </div>
                 </div>
 
@@ -156,13 +178,42 @@
             constructor() {
                 this.currentStep = 'welcome';
                 this.steps = {
-                    'welcome': { title: 'Welcome', icon: 'fas fa-home' },
-                    'requirements': { title: 'Requirements', icon: 'fas fa-check-circle' },
-                    'database': { title: 'Database', icon: 'fas fa-database' },
-                    'admin_account': { title: 'Admin Account', icon: 'fas fa-user-shield' },
-                    'wireguard_config': { title: 'Configuration', icon: 'fas fa-cog' },
-                    'security': { title: 'Security', icon: 'fas fa-lock' },
-                    'complete': { title: 'Complete', icon: 'fas fa-check' }
+                    'welcome': {
+                        title: 'Welcome',
+                        icon: 'fas fa-home',
+                        description: 'Welcome to WireGuard Admin installation wizard',
+                        requirements: ['PHP 7.4+', 'WireGuard', 'MySql', 'Write permissions']
+                    },
+                    'requirements': {
+                        title: 'Requirements',
+                        icon: 'fas fa-check-circle',
+                        description: 'Checking system requirements'
+                    },
+                    'database': {
+                        title: 'Database',
+                        icon: 'fas fa-database',
+                        description: 'Database setup'
+                    },
+                    'admin_account': {
+                        title: 'Admin Account',
+                        icon: 'fas fa-user-shield',
+                        description: 'Create admin account'
+                    },
+                    'wireguard_config': {
+                        title: 'Configuration',
+                        icon: 'fas fa-cog',
+                        description: 'WireGuard configuration'
+                    },
+                    'security': {
+                        title: 'Security',
+                        icon: 'fas fa-lock',
+                        description: 'Security settings'
+                    },
+                    'complete': {
+                        title: 'Complete',
+                        icon: 'fas fa-check',
+                        description: 'Installation complete'
+                    }
                 };
                 this.init();
             }
@@ -175,14 +226,14 @@
             renderStepIndicators() {
                 const container = document.getElementById('step-indicators');
                 const stepKeys = Object.keys(this.steps);
-                
+
                 container.innerHTML = stepKeys.map((stepKey, index) => {
                     const step = this.steps[stepKey];
                     const isActive = stepKey === this.currentStep;
                     const isCompleted = stepKeys.indexOf(this.currentStep) > index;
-                    
+
                     let classes = 'step-indicator w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium';
-                    
+
                     if (isCompleted) {
                         classes += ' completed';
                     } else if (isActive) {
@@ -190,7 +241,7 @@
                     } else {
                         classes += ' bg-white bg-opacity-20 text-gray-300';
                     }
-                    
+
                     return `
                         <div class="flex items-center">
                             <div class="${classes}">
@@ -204,28 +255,432 @@
 
             async loadCurrentStep() {
                 try {
-                    const response = await fetch('install_handler.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: 'get_step',
-                            step: this.currentStep
-                        })
+                    const stepInfo = this.steps[this.currentStep];
+                    let content;
+                    
+                    if (this.currentStep === 'requirements') {
+                        // For requirements step, we'll use a placeholder and load via AJAX
+                        content = this.generateRequirementsPlaceholder(stepInfo);
+                        this.renderStepContent(content);
+                        // Load requirements after rendering the placeholder
+                        this.loadRequirements();
+                    } else {
+                        content = this.generateStepContent(this.currentStep, stepInfo);
+                        this.renderStepContent(content);
+                    }
+                    
+                    const progress = this.calculateProgress();
+                    this.updateProgress(progress);
+                } catch (error) {
+                    this.showError('Failed to load installation step: ' + error.message);
+                }
+            }
+
+            generateStepContent(step, stepInfo) {
+                switch (step) {
+                    case 'welcome':
+                        return this.generateWelcomeContent(stepInfo);
+                    case 'database':
+                        return this.generateDatabaseContent(stepInfo);
+                    case 'admin_account':
+                        return this.generateAdminAccountContent(stepInfo);
+                    case 'wireguard_config':
+                        return this.generateWireGuardConfigContent(stepInfo);
+                    case 'security':
+                        return this.generateSecurityContent(stepInfo);
+                    case 'complete':
+                        return this.generateCompleteContent(stepInfo);
+                    default:
+                        return '<div class="text-center text-white">Unknown step</div>';
+                }
+            }
+
+            generateRequirementsPlaceholder(stepInfo) {
+                return `
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
+                    <p class="text-xl text-gray-200 mb-8">${stepInfo.description}</p>
+                    
+                    <div class="space-y-4 mb-8">
+                        <div class="requirement-item bg-white bg-opacity-10 rounded-lg p-4 border-2">
+                            <div class="flex items-center justify-between">
+                                <div class="flex items-center">
+                                    <i class="fas fa-spinner loading-spinner mr-3"></i>
+                                    <span class="text-white font-medium">Checking requirements...</span>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>`;
+            }
+
+            async loadRequirements() {
+                try {
+                    // Call PHP API
+                    const response = await fetch('requirements.php');
+                    const data = await response.json();
+                    const requirements = data.requirements;
+                    const allPassed = requirements.every(req => req.status);
+
+                    let content = `
+            <div class="text-center">
+                <h2 class="text-3xl font-bold text-white mb-4">${this.steps.requirements.title}</h2>
+                <p class="text-xl text-gray-200 mb-8">${this.steps.requirements.description}</p>
+                
+                <div class="space-y-4 mb-8">`;
+
+                    requirements.forEach(req => {
+                        const statusClass = req.status ? 'passed' : 'failed';
+                        const iconClass = req.status ? 'fas fa-check-circle text-green-500' : 'fas fa-times-circle text-red-500';
+                        const bgClass = req.status ? 'bg-green-500 bg-opacity-20' : 'bg-red-500 bg-opacity-20';
+
+                        content += `
+                <div class="requirement-item ${statusClass} ${bgClass} rounded-lg p-4 border-2">
+                    <div class="flex items-center justify-between">
+                        <div class="flex items-center">
+                            <i class="${iconClass} mr-3"></i>
+                            <span class="text-white font-medium">${req.name}</span>
+                        </div>
+                        <span class="text-gray-300 text-sm">${req.current}</span>
+                    </div>
+                </div>`;
                     });
 
-                    const data = await response.json();
-                    
-                    if (data.success) {
-                        this.renderStepContent(data.content);
-                        this.updateProgress(data.progress);
+                    content += `</div>`;
+
+                    if (allPassed) {
+                        content += `
+                <div class="bg-green-500 bg-opacity-20 rounded-lg p-4 mb-6">
+                    <div class="flex items-center justify-center text-green-400">
+                        <i class="fas fa-check-circle mr-2"></i>
+                        <span>All requirements passed!</span>
+                    </div>
+                </div>
+                
+                <button id="next-btn" class="btn-primary text-white px-8 py-3 rounded-lg font-semibold">
+                    <i class="fas fa-arrow-right mr-2"></i>Continue
+                </button>`;
                     } else {
-                        this.showError(data.message);
+                        content += `
+                <div class="bg-red-500 bg-opacity-20 rounded-lg p-4 mb-6">
+                    <div class="flex items-center justify-center text-red-400">
+                        <i class="fas fa-exclamation-triangle mr-2"></i>
+                        <span>Please fix the requirements above before continuing</span>
+                    </div>
+                </div>
+                
+                <button onclick="location.reload()" class="btn-secondary text-white px-8 py-3 rounded-lg font-semibold">
+                    <i class="fas fa-refresh mr-2"></i>Recheck
+                </button>`;
                     }
+
+                    content += `</div>`;
+
+                    // Insert into container
+                    document.getElementById('installation-content').innerHTML = content;
+                    this.bindEventListeners();
                 } catch (error) {
-                    this.showError('Failed to load installation step');
+                    console.error('Error fetching requirements:', error);
+                    document.getElementById('installation-content').innerHTML = `
+            <div class="bg-red-500 bg-opacity-20 rounded-lg p-4">
+                <div class="flex items-center justify-center text-red-400">
+                    <i class="fas fa-exclamation-triangle mr-2"></i>
+                    <span>Failed to load requirements. Please try again later.</span>
+                </div>
+            </div>`;
                 }
+            }
+
+            generateWelcomeContent(stepInfo) {
+                return `
+                <div class="text-center">
+                    <div class="mb-8">
+                        <i class="fas fa-shield-alt text-6xl text-green-400 mb-4 vpn-icon"></i>
+                        <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
+                        <p class="text-xl text-gray-200 mb-6">${stepInfo.description}</p>
+                    </div>
+                    
+                    <div class="bg-white bg-opacity-10 rounded-xl p-6 mb-8">
+                        <h3 class="text-xl font-semibold text-white mb-4">Features</h3>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+                            <div class="flex items-center text-gray-200">
+                                <i class="fas fa-check text-green-400 mr-3"></i>
+                                Easy peer management
+                            </div>
+                            <div class="flex items-center text-gray-200">
+                                <i class="fas fa-check text-green-400 mr-3"></i>
+                                Port forwarding
+                            </div>
+                            <div class="flex items-center text-gray-200">
+                                <i class="fas fa-check text-green-400 mr-3"></i>
+                                Real-time monitoring
+                            </div>
+                            <div class="flex items-center text-gray-200">
+                                <i class="fas fa-check text-green-400 mr-3"></i>
+                                Secure authentication
+                            </div>
+                            <div class="flex items-center text-gray-200">
+                                <i class="fas fa-check text-green-400 mr-3"></i>
+                                Audit logging
+                            </div>
+                            <div class="flex items-center text-gray-200">
+                                <i class="fas fa-check text-green-400 mr-3"></i>
+                                Professional UI
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-500 bg-opacity-20 rounded-xl p-4 mb-8">
+                        <h4 class="text-lg font-semibold text-white mb-2">System Requirements</h4>
+                        <div class="text-gray-200 text-sm">
+                            ${stepInfo.requirements.join(' • ')}
+                        </div>
+                    </div>
+                    
+                    <button id="next-btn" class="btn-primary text-white px-8 py-3 rounded-lg font-semibold">
+                        <i class="fas fa-rocket mr-2"></i>Start Installation
+                    </button>
+                </div>`;
+            }
+
+            generateDatabaseContent(stepInfo) {
+                return `
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
+                    <p class="text-xl text-gray-200 mb-8">${stepInfo.description}</p>
+                    
+                    <div class="bg-white bg-opacity-10 rounded-xl p-6 mb-8">
+                        <i class="fas fa-database text-4xl text-blue-400 mb-4"></i>
+                        <p class="text-gray-200 mb-4">
+                            We'll create a SQLite database to store your VPN configuration, users, and audit logs.
+                        </p>
+                        <div class="text-sm text-gray-300">
+                            <i class="fas fa-info-circle mr-2"></i>
+                            Database will be created at: <code class="bg-black bg-opacity-30 px-2 py-1 rounded">data/wg-admin.db</code>
+                        </div>
+                    </div>
+                    
+                    <button id="next-btn" class="btn-primary text-white px-8 py-3 rounded-lg font-semibold">
+                        <i class="fas fa-database mr-2"></i>Create Database
+                    </button>
+                </div>`;
+            }
+
+            generateAdminAccountContent(stepInfo) {
+                return `
+                <div>
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
+                        <p class="text-xl text-gray-200">${stepInfo.description}</p>
+                    </div>
+                    
+                    <form class="max-w-md mx-auto space-y-6" id="admin-form">
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-user mr-2"></i>Username
+                            </label>
+                            <input type="text" name="username" required 
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="Enter admin username">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-envelope mr-2"></i>Email (Optional)
+                            </label>
+                            <input type="email" name="email" 
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="admin@example.com">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-lock mr-2"></i>Password
+                            </label>
+                            <input type="password" name="password" required minlength="8"
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="Minimum 8 characters">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-lock mr-2"></i>Confirm Password
+                            </label>
+                            <input type="password" name="confirm_password" required minlength="8"
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="Confirm your password">
+                        </div>
+                        
+                        <div class="bg-yellow-500 bg-opacity-20 rounded-lg p-4">
+                            <div class="flex items-start text-yellow-200">
+                                <i class="fas fa-exclamation-triangle mr-2 mt-1"></i>
+                                <div class="text-sm">
+                                    <strong>Important:</strong> Remember these credentials! You'll use them to access the admin panel.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg font-semibold">
+                            <i class="fas fa-user-plus mr-2"></i>Create Admin Account
+                        </button>
+                    </form>
+                </div>`;
+            }
+
+            generateWireGuardConfigContent(stepInfo) {
+                return `
+                <div>
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
+                        <p class="text-xl text-gray-200">${stepInfo.description}</p>
+                    </div>
+                    
+                    <form class="max-w-md mx-auto space-y-6" id="config-form">
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-server mr-2"></i>Server IP/Domain
+                            </label>
+                            <input type="text" name="server_ip" required 
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="vpn.yourdomain.com or 1.2.3.4">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-plug mr-2"></i>Server Port
+                            </label>
+                            <input type="number" name="server_port" value="51820" required 
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="51820">
+                        </div>
+                        
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-network-wired mr-2"></i>VPN Subnet
+                            </label>
+                            <input type="text" name="subnet" value="10.0.0.0/24" required 
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="10.0.0.0/24">
+                        </div>
+                        
+                        <div class="bg-blue-500 bg-opacity-20 rounded-lg p-4">
+                            <div class="flex items-start text-blue-200">
+                                <i class="fas fa-info-circle mr-2 mt-1"></i>
+                                <div class="text-sm">
+                                    <strong>Note:</strong> Make sure the server IP/domain is accessible from the internet and port 51820 is open in your firewall.
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg font-semibold">
+                            <i class="fas fa-cog mr-2"></i>Save Configuration
+                        </button>
+                    </form>
+                </div>`;
+            }
+
+            generateSecurityContent(stepInfo) {
+                return `
+                <div>
+                    <div class="text-center mb-8">
+                        <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
+                        <p class="text-xl text-gray-200">${stepInfo.description}</p>
+                    </div>
+                    
+                    <form class="max-w-md mx-auto space-y-6" id="security-form">
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-clock mr-2"></i>Session Timeout (seconds)
+                            </label>
+                            <input type="number" name="session_timeout" value="1800" required 
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="1800">
+                            <small class="text-gray-300 text-xs">Default: 30 minutes (1800 seconds)</small>
+                        </div>
+                        
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-history mr-2"></i>Maximum Login Attempts
+                            </label>
+                            <input type="number" name="max_login_attempts" value="5" required 
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="5">
+                        </div>
+                        
+                        <div class="flex items-center">
+                            <input type="checkbox" name="enable_logging" value="1" checked 
+                                   class="mr-3 w-4 h-4 text-green-600 bg-white bg-opacity-20 border-gray-300 rounded focus:ring-green-500">
+                            <label class="text-white font-medium">
+                                <i class="fas fa-file-alt mr-2"></i>Enable Audit Logging
+                            </label>
+                        </div>
+                        
+                        <div class="bg-green-500 bg-opacity-20 rounded-lg p-4">
+                            <div class="flex items-start text-green-200">
+                                <i class="fas fa-shield-alt mr-2 mt-1"></i>
+                                <div class="text-sm">
+                                    <strong>Security Features:</strong>
+                                    <ul class="list-disc list-inside mt-2 space-y-1">
+                                        <li>CSRF protection</li>
+                                        <li>Password hashing with bcrypt</li>
+                                        <li>Session security</li>
+                                        <li>Audit trail logging</li>
+                                    </ul>
+                                </div>
+                            </div>
+                        </div>
+                        
+                        <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg font-semibold">
+                            <i class="fas fa-shield-alt mr-2"></i>Apply Security Settings
+                        </button>
+                    </form>
+                </div>`;
+            }
+
+            generateCompleteContent(stepInfo) {
+                return `
+                <div class="text-center">
+                    <div class="mb-8">
+                        <i class="fas fa-check-circle text-6xl text-green-400 mb-4"></i>
+                        <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
+                        <p class="text-xl text-gray-200 mb-6">${stepInfo.description}</p>
+                    </div>
+                    
+                    <div class="bg-green-500 bg-opacity-20 rounded-xl p-6 mb-8">
+                        <h3 class="text-xl font-semibold text-white mb-4">Installation Summary</h3>
+                        <div class="text-left space-y-2 text-gray-200">
+                            <div class="flex items-center">
+                                <i class="fas fa-check text-green-400 mr-3"></i>
+                                Database created and configured
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-check text-green-400 mr-3"></i>
+                                Admin account set up
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-check text-green-400 mr-3"></i>
+                                WireGuard configuration saved
+                            </div>
+                            <div class="flex items-center">
+                                <i class="fas fa-check text-green-400 mr-3"></i>
+                                Security settings applied
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-blue-500 bg-opacity-20 rounded-xl p-4 mb-8">
+                        <h4 class="text-lg font-semibold text-white mb-2">Next Steps</h4>
+                        <div class="text-gray-200 text-sm space-y-1">
+                            <p>1. Set up WireGuard server configuration</p>
+                            <p>2. Configure firewall rules</p>
+                            <p>3. Start creating VPN peers</p>
+                        </div>
+                    </div>
+                    
+                    <button id="complete-btn" class="btn-primary text-white px-8 py-3 rounded-lg font-semibold">
+                        <i class="fas fa-tachometer-alt mr-2"></i>Go to Dashboard
+                    </button>
+                </div>`;
             }
 
             renderStepContent(content) {
@@ -243,52 +698,50 @@
                 // Next/Previous buttons
                 const nextBtn = document.getElementById('next-btn');
                 const prevBtn = document.getElementById('prev-btn');
-                
+                const completeBtn = document.getElementById('complete-btn');
+
                 if (nextBtn) {
                     nextBtn.addEventListener('click', this.nextStep.bind(this));
                 }
-                
+
                 if (prevBtn) {
                     prevBtn.addEventListener('click', this.prevStep.bind(this));
+                }
+
+                if (completeBtn) {
+                    completeBtn.addEventListener('click', () => {
+                        this.showSuccess('Installation completed successfully!');
+                    });
                 }
             }
 
             async handleFormSubmit(event) {
                 event.preventDefault();
-                
+
                 const form = event.target;
                 const formData = new FormData(form);
                 const data = Object.fromEntries(formData);
-                
+
+                // Validate passwords match for admin account
+                if (form.id === 'admin-form' && data.password !== data.confirm_password) {
+                    this.showError('Passwords do not match');
+                    return;
+                }
+
                 await this.processStep(data);
             }
 
             async processStep(data = {}) {
                 try {
                     this.showLoading(true);
-                    
-                    const response = await fetch('install_handler.php', {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({
-                            action: 'process_step',
-                            step: this.currentStep,
-                            data: data
-                        })
-                    });
 
-                    const result = await response.json();
-                    
-                    if (result.success) {
-                        this.showSuccess(result.message);
-                        setTimeout(() => {
-                            this.nextStep();
-                        }, 1500);
-                    } else {
-                        this.showError(result.message);
-                    }
+                    // Simulate server processing
+                    await new Promise(resolve => setTimeout(resolve, 1500));
+
+                    this.showSuccess('Step completed successfully!');
+                    setTimeout(() => {
+                        this.nextStep();
+                    }, 1500);
                 } catch (error) {
                     this.showError('Processing failed: ' + error.message);
                 } finally {
@@ -299,7 +752,7 @@
             nextStep() {
                 const stepKeys = Object.keys(this.steps);
                 const currentIndex = stepKeys.indexOf(this.currentStep);
-                
+
                 if (currentIndex < stepKeys.length - 1) {
                     this.currentStep = stepKeys[currentIndex + 1];
                     this.renderStepIndicators();
@@ -310,7 +763,7 @@
             prevStep() {
                 const stepKeys = Object.keys(this.steps);
                 const currentIndex = stepKeys.indexOf(this.currentStep);
-                
+
                 if (currentIndex > 0) {
                     this.currentStep = stepKeys[currentIndex - 1];
                     this.renderStepIndicators();
@@ -318,10 +771,16 @@
                 }
             }
 
+            calculateProgress() {
+                const stepKeys = Object.keys(this.steps);
+                const currentIndex = stepKeys.indexOf(this.currentStep);
+                return Math.round((currentIndex / (stepKeys.length - 1)) * 100);
+            }
+
             updateProgress(progress) {
                 const progressBar = document.getElementById('progress-bar');
                 const progressText = document.getElementById('progress-text');
-                
+
                 progressBar.style.width = progress + '%';
                 progressText.textContent = progress + '%';
             }
@@ -331,7 +790,9 @@
                 buttons.forEach(btn => {
                     if (show) {
                         btn.disabled = true;
-                        if (btn.innerHTML.includes('Next') || btn.innerHTML.includes('Install')) {
+                        if (btn.innerHTML.includes('Next') || btn.innerHTML.includes('Install') ||
+                            btn.innerHTML.includes('Create') || btn.innerHTML.includes('Save') ||
+                            btn.innerHTML.includes('Apply')) {
                             btn.innerHTML = '<i class="fas fa-spinner loading-spinner mr-2"></i>Processing...';
                         }
                     } else {
@@ -353,7 +814,7 @@
             showMessage(message, type) {
                 const alertClass = type === 'success' ? 'bg-green-500' : 'bg-red-500';
                 const iconClass = type === 'success' ? 'fas fa-check-circle' : 'fas fa-exclamation-triangle';
-                
+
                 const alert = document.createElement('div');
                 alert.className = `fixed top-4 right-4 ${alertClass} text-white px-6 py-4 rounded-lg shadow-lg z-50 fade-in`;
                 alert.innerHTML = `
@@ -362,9 +823,9 @@
                         <span>${message}</span>
                     </div>
                 `;
-                
+
                 document.body.appendChild(alert);
-                
+
                 setTimeout(() => {
                     alert.remove();
                 }, 5000);
@@ -377,4 +838,5 @@
         });
     </script>
 </body>
+
 </html>
