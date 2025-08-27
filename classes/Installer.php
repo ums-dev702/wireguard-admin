@@ -102,36 +102,58 @@ class Installer
     public function completeStep($step, $data = [])
     {
         try {
+            if ($step === 'database') {
+                // Use MySQL credentials from form
+                $host = $data['db_host'] ?? 'localhost';
+                $dbname = $data['db_name'] ?? 'wireguard_admin';
+                $user = $data['db_user'] ?? 'root';
+                $pass = $data['db_pass'] ?? '';
+                $port = $data['db_port'] ?? 3306;
+
+                // Try to connect and create tables
+                try {
+                    $db = new \WireGuardAdmin\Database($host, $dbname, $user, $pass, $port);
+                } catch (\Exception $e) {
+                    return ['success' => false, 'message' => 'MySQL connection failed: ' . $e->getMessage()];
+                }
+
+                // Test table creation
+                $result = $this->processDatabaseStep([], $db);
+                if ($result['success']) {
+                    // Save config
+                    $this->createConfigFile([
+                        'db_host' => $host,
+                        'db_name' => $dbname,
+                        'db_user' => $user,
+                        'db_pass' => $pass,
+                        'db_port' => $port
+                    ]);
+                    $this->db = $db;
+                    $this->markStepCompleted($step, $result['message']);
+                }
+                return $result;
+            }
+
             $this->db->beginTransaction();
-
             switch ($step) {
-                case 'database':
-                    $result = $this->processDatabaseStep($data);
-                    break;
-
                 case 'admin_account':
                     $result = $this->processAdminAccountStep($data);
                     break;
-
                 case 'wireguard_config':
                     $result = $this->processWireGuardConfigStep($data);
                     break;
-
                 case 'security':
                     $result = $this->processSecurityStep($data);
                     break;
-
                 default:
                     $result = ['success' => true, 'message' => 'Step completed'];
             }
-
             if ($result['success']) {
                 $this->markStepCompleted($step, $result['message']);
                 $this->db->commit();
             } else {
                 $this->db->rollback();
             }
-
             return $result;
         } catch (\Exception $e) {
             $this->db->rollback();
@@ -140,20 +162,18 @@ class Installer
     }
 
 
-    private function processDatabaseStep($data)
+    private function processDatabaseStep($data = [], $dbOverride = null)
     {
+        $db = $dbOverride ?: $this->db;
         try {
-            // Database tables are created in Database constructor
-            // Just verify they exist
+            // Check if tables exist in MySQL
             $tables = ['users', 'peers', 'port_forwards', 'settings', 'audit_log', 'installation_status'];
-
             foreach ($tables as $table) {
-                $result = $this->db->query("SELECT name FROM sqlite_master WHERE type='table' AND name=?", [$table]);
+                $result = $db->query("SHOW TABLES LIKE ?", [$table]);
                 if (!$result->fetch()) {
-                    return ['success' => false, 'message' => "Table {$table} not created"];
+                    return ['success' => false, 'message' => "Table {$table} not created or accessible."];
                 }
             }
-
             return ['success' => true, 'message' => 'Database initialized successfully'];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Database setup failed: ' . $e->getMessage()];
@@ -267,20 +287,25 @@ class Installer
         $configContent .= "// WireGuard Admin Configuration\n";
         $configContent .= "// Generated on " . date('Y-m-d H:i:s') . "\n\n";
 
-        $configContent .= "// Database\n";
-        $configContent .= "define('DB_PATH', __DIR__ . '/data/wg-admin.db');\n\n";
+        $configContent .= "// MySQL Database Configuration\n";
+        $configContent .= "define('DB_HOST', '" . addslashes($data['db_host'] ?? 'localhost') . "');\n";
+        $configContent .= "define('DB_NAME', '" . addslashes($data['db_name'] ?? 'wireguard_admin') . "');\n";
+        $configContent .= "define('DB_USER', '" . addslashes($data['db_user'] ?? 'root') . "');\n";
+        $configContent .= "define('DB_PASS', '" . addslashes($data['db_pass'] ?? '') . "');\n";
+        $configContent .= "define('DB_PORT', " . intval($data['db_port'] ?? 3306) . ");\n\n";
 
         $configContent .= "// WireGuard Settings\n";
         $configContent .= "define('WG_CONF_PATH', '/etc/wireguard/wg0.conf');\n";
         $configContent .= "define('WG_IFACE', 'wg0');\n";
-        $configContent .= "define('SERVER_IP', '{$data['server_ip']}');\n";
-        $configContent .= "define('SERVER_PORT', '{$data['server_port']}');\n";
-        $configContent .= "define('SUBNET', '{$data['subnet']}');\n\n";
+        if (!empty($data['server_ip'])) $configContent .= "define('SERVER_IP', '" . addslashes($data['server_ip']) . "');\n";
+        if (!empty($data['server_port'])) $configContent .= "define('SERVER_PORT', '" . addslashes($data['server_port']) . "');\n";
+        if (!empty($data['subnet'])) $configContent .= "define('SUBNET', '" . addslashes($data['subnet']) . "');\n";
+        $configContent .= "\n";
 
-        $configContent .= "// Security Settings\n";
-        $configContent .= "define('SESSION_TIMEOUT', {$data['session_timeout']});\n";
-        $configContent .= "define('ENABLE_LOGGING', " . ($data['enable_logging'] ? 'true' : 'false') . ");\n";
-        $configContent .= "define('MAX_LOGIN_ATTEMPTS', {$data['max_login_attempts']});\n\n";
+        if (!empty($data['session_timeout'])) $configContent .= "define('SESSION_TIMEOUT', " . intval($data['session_timeout']) . ");\n";
+        if (isset($data['enable_logging'])) $configContent .= "define('ENABLE_LOGGING', " . ($data['enable_logging'] ? 'true' : 'false') . ");\n";
+        if (!empty($data['max_login_attempts'])) $configContent .= "define('MAX_LOGIN_ATTEMPTS', " . intval($data['max_login_attempts']) . ");\n";
+        $configContent .= "\n";
 
         $configContent .= "// Application Settings\n";
         $configContent .= "define('APP_NAME', 'WireGuard Admin');\n";
@@ -291,11 +316,9 @@ class Installer
         $configContent .= "spl_autoload_register(function (\$class) {\n";
         $configContent .= "    \$prefix = 'WireGuardAdmin\\\\';\n";
         $configContent .= "    \$baseDir = __DIR__ . '/classes/';\n";
-        $configContent .= "    \n";
         $configContent .= "    if (strpos(\$class, \$prefix) === 0) {\n";
         $configContent .= "        \$relativeClass = substr(\$class, strlen(\$prefix));\n";
         $configContent .= "        \$file = \$baseDir . str_replace('\\\\', '/', \$relativeClass) . '.php';\n";
-        $configContent .= "        \n";
         $configContent .= "        if (file_exists(\$file)) {\n";
         $configContent .= "            require \$file;\n";
         $configContent .= "        }\n";
