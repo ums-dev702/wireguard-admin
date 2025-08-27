@@ -453,7 +453,6 @@
                             <i class="fas fa-database text-4xl text-blue-400 mb-4"></i>
                             <p class="text-gray-200 mb-4">
                                 Please enter your <b>MySQL</b> database connection details. <br>
-                                <span class="text-yellow-300">Note: MySQL is required. SQLite is not supported in this version.</span>
                             </p>
                         </div>
                         <div>
