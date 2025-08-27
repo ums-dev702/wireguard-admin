@@ -1,4 +1,46 @@
-<!DOCTYPE html>
+<?php
+// --- WireGuard Admin Installer Backend Integration ---
+require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/autoloader.php';
+use WireGuardAdmin\Database;
+use WireGuardAdmin\Installer;
+
+// Handle AJAX requests for installer steps
+if ($_SERVER['REQUEST_METHOD'] === 'POST' && isset($_POST['action'])) {
+    $action = $_POST['action'];
+    $response = ['success' => false, 'message' => 'Invalid action'];
+    try {
+        $db = new Database();
+        $installer = new Installer($db);
+        if ($action === 'get_step') {
+            $step = $_POST['step'] ?? $installer->getCurrentStep();
+            $info = $installer->getStepInfo($step);
+            $response = [
+                'success' => true,
+                'step' => $step,
+                'info' => $info,
+                'progress' => $installer->getInstallationProgress(),
+                'isInstalled' => $installer->isInstalled()
+            ];
+        } elseif ($action === 'submit_step') {
+            $step = $_POST['step'] ?? '';
+            $data = $_POST['data'] ?? [];
+            if (is_string($data)) {
+                $data = json_decode($data, true);
+            }
+            $result = $installer->completeStep($step, $data);
+            $response = $result;
+            $response['progress'] = $installer->getInstallationProgress();
+        }
+    } catch (Exception $e) {
+        $response = ['success' => false, 'message' => $e->getMessage()];
+    }
+    header('Content-Type: application/json');
+    echo json_encode($response);
+    exit;
+}
+
+?><!DOCTYPE html>
 <html lang="en">
 
 <head>
@@ -571,7 +613,7 @@
                         <p class="text-xl text-gray-200">${stepInfo.description}</p>
                     </div>
                     
-                    <form class="max-w-md mx-auto space-y-6" id="config-form">
+                    <form class="max-w-md mx-auto space-y-6" id="--form">
                         <div>
                             <label class="block text-white font-medium mb-2">
                                 <i class="fas fa-server mr-2"></i>Server IP/Domain
