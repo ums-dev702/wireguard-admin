@@ -448,21 +448,58 @@
                 <div class="text-center">
                     <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
                     <p class="text-xl text-gray-200 mb-8">${stepInfo.description}</p>
-                    
-                    <div class="bg-white bg-opacity-10 rounded-xl p-6 mb-8">
-                        <i class="fas fa-database text-4xl text-blue-400 mb-4"></i>
-                        <p class="text-gray-200 mb-4">
-                            We'll create a SQLite database to store your VPN configuration, users, and audit logs.
-                        </p>
-                        <div class="text-sm text-gray-300">
-                            <i class="fas fa-info-circle mr-2"></i>
-                            Database will be created at: <code class="bg-black bg-opacity-30 px-2 py-1 rounded">data/wg-admin.db</code>
+                    <form class="max-w-md mx-auto space-y-6" id="mysql-form">
+                        <div class="bg-white bg-opacity-10 rounded-xl p-6 mb-8">
+                            <i class="fas fa-database text-4xl text-blue-400 mb-4"></i>
+                            <p class="text-gray-200 mb-4">
+                                Please enter your <b>MySQL</b> database connection details. <br>
+                                <span class="text-yellow-300">Note: MySQL is required. SQLite is not supported in this version.</span>
+                            </p>
                         </div>
-                    </div>
-                    
-                    <button id="next-btn" class="btn-primary text-white px-8 py-3 rounded-lg font-semibold">
-                        <i class="fas fa-database mr-2"></i>Create Database
-                    </button>
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-server mr-2"></i>MySQL Host
+                            </label>
+                            <input type="text" name="db_host" value="localhost" required
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="localhost">
+                        </div>
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-database mr-2"></i>Database Name
+                            </label>
+                            <input type="text" name="db_name" value="wireguard_admin" required
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="wireguard_admin">
+                        </div>
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-user mr-2"></i>MySQL Username
+                            </label>
+                            <input type="text" name="db_user" value="root" required
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="root">
+                        </div>
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-key mr-2"></i>MySQL Password
+                            </label>
+                            <input type="password" name="db_pass"
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="Password">
+                        </div>
+                        <div>
+                            <label class="block text-white font-medium mb-2">
+                                <i class="fas fa-plug mr-2"></i>MySQL Port
+                            </label>
+                            <input type="number" name="db_port" value="3306" required
+                                   class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 focus:outline-none focus:border-green-400"
+                                   placeholder="3306">
+                        </div>
+                        <button type="submit" class="w-full btn-primary text-white py-3 rounded-lg font-semibold">
+                            <i class="fas fa-database mr-2"></i>Save & Test Connection
+                        </button>
+                    </form>
                 </div>`;
             }
 

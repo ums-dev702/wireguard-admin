@@ -2,17 +2,20 @@
 
 namespace WireGuardAdmin;
 
-class Installer {
+class Installer
+{
     private $db;
     private $steps;
     private $currentStep;
 
-    public function __construct(Database $db) {
+    public function __construct(Database $db)
+    {
         $this->db = $db;
         $this->initializeSteps();
     }
 
-    private function initializeSteps() {
+    private function initializeSteps()
+    {
         $this->steps = [
             'welcome' => [
                 'title' => 'Welcome to WireGuard Admin',
@@ -51,7 +54,8 @@ class Installer {
         ];
     }
 
-    public function isInstalled() {
+    public function isInstalled()
+    {
         try {
             $status = $this->db->selectOne(
                 "SELECT * FROM installation_status WHERE step = 'complete' AND status = 'completed'"
@@ -62,104 +66,61 @@ class Installer {
         }
     }
 
-    public function getCurrentStep() {
+    public function getCurrentStep()
+    {
         try {
             $completedSteps = $this->db->select(
                 "SELECT step FROM installation_status WHERE status = 'completed' ORDER BY completed_at"
             );
-            
+
             $completedStepNames = array_column($completedSteps, 'step');
-            
+
             foreach (array_keys($this->steps) as $step) {
                 if (!in_array($step, $completedStepNames)) {
                     return $step;
                 }
             }
-            
+
             return 'complete';
         } catch (\Exception $e) {
             return 'welcome';
         }
     }
 
-    public function getStepInfo($step) {
+    public function getStepInfo($step)
+    {
         return $this->steps[$step] ?? null;
     }
 
-    public function getAllSteps() {
+    public function getAllSteps()
+    {
         return $this->steps;
     }
 
-    public function checkRequirements() {
-        $requirements = [];
-        
-        // PHP Version
-        $requirements['php_version'] = [
-            'name' => 'PHP Version >= 7.4',
-            'status' => version_compare(PHP_VERSION, '7.4.0', '>='),
-            'current' => PHP_VERSION
-        ];
 
-        // WireGuard Installation
-        $wgInstalled = !empty(shell_exec('which wg 2>/dev/null'));
-        $requirements['wireguard'] = [
-            'name' => 'WireGuard Tools',
-            'status' => $wgInstalled,
-            'current' => $wgInstalled ? 'Installed' : 'Not found'
-        ];
 
-        // SQLite Support
-        $requirements['sqlite'] = [
-            'name' => 'SQLite Support',
-            'status' => extension_loaded('pdo_sqlite'),
-            'current' => extension_loaded('pdo_sqlite') ? 'Available' : 'Missing'
-        ];
-
-        // Directory Permissions
-        $dataDir = __DIR__ . '/../data';
-        $writable = is_writable(dirname($dataDir)) || (is_dir($dataDir) && is_writable($dataDir));
-        $requirements['permissions'] = [
-            'name' => 'Data Directory Writable',
-            'status' => $writable,
-            'current' => $writable ? 'Writable' : 'Not writable'
-        ];
-
-        // Sudo Access (basic check)
-        $sudoAccess = !empty(shell_exec('sudo -n wg --version 2>/dev/null'));
-        $requirements['sudo'] = [
-            'name' => 'Sudo Access for WireGuard',
-            'status' => $sudoAccess,
-            'current' => $sudoAccess ? 'Available' : 'Not configured'
-        ];
-
-        return $requirements;
-    }
-
-    public function completeStep($step, $data = []) {
+    public function completeStep($step, $data = [])
+    {
         try {
             $this->db->beginTransaction();
 
             switch ($step) {
-                case 'requirements':
-                    $result = $this->processRequirementsStep($data);
-                    break;
-                
                 case 'database':
                     $result = $this->processDatabaseStep($data);
                     break;
-                
+
                 case 'admin_account':
                     $result = $this->processAdminAccountStep($data);
                     break;
-                
+
                 case 'wireguard_config':
                     $result = $this->processWireGuardConfigStep($data);
                     break;
-                
+
                 case 'security':
                     $result = $this->processSecurityStep($data);
                     break;
-                
+
                 default:
                     $result = ['success' => true, 'message' => 'Step completed'];
             }
@@ -172,37 +133,20 @@ class Installer {
             }
 
             return $result;
-
         } catch (\Exception $e) {
             $this->db->rollback();
             return ['success' => false, 'message' => 'Error: ' . $e->getMessage()];
         }
     }
 
-    private function processRequirementsStep($data) {
-        $requirements = $this->checkRequirements();
-        $allPassed = true;
-        
-        foreach ($requirements as $req) {
-            if (!$req['status']) {
-                $allPassed = false;
-                break;
-            }
-        }
 
-        if (!$allPassed) {
-            return ['success' => false, 'message' => 'Some requirements are not met'];
-        }
-
-        return ['success' => true, 'message' => 'All requirements passed'];
-    }
-
-    private function processDatabaseStep($data) {
+    private function processDatabaseStep($data)
+    {
         try {
             // Database tables are created in Database constructor
             // Just verify they exist
             $tables = ['users', 'peers', 'port_forwards', 'settings', 'audit_log', 'installation_status'];
-            
+
             foreach ($tables as $table) {
                 $result = $this->db->query("SELECT name FROM sqlite_master WHERE type='table' AND name=?", [$table]);
                 if (!$result->fetch()) {
@@ -216,7 +160,8 @@ class Installer {
         }
     }
 
-    private function processAdminAccountStep($data) {
+    private function processAdminAccountStep($data)
+    {
         $username = $data['username'] ?? '';
         $password = $data['password'] ?? '';
         $email = $data['email'] ?? '';
@@ -232,14 +177,15 @@ class Installer {
         try {
             $auth = new Auth($this->db);
             $userId = $auth->createUser($username, $password, $email, 'admin');
-            
+
             return ['success' => true, 'message' => 'Admin account created successfully'];
         } catch (\Exception $e) {
             return ['success' => false, 'message' => 'Failed to create admin account: ' . $e->getMessage()];
         }
     }
 
-    private function processWireGuardConfigStep($data) {
+    private function processWireGuardConfigStep($data)
+    {
         $serverIp = $data['server_ip'] ?? '';
         $serverPort = $data['server_port'] ?? '51820';
         $subnet = $data['subnet'] ?? '10.0.0.0/24';
@@ -270,7 +216,8 @@ class Installer {
         }
     }
 
-    private function processSecurityStep($data) {
+    private function processSecurityStep($data)
+    {
         $sessionTimeout = $data['session_timeout'] ?? '1800';
         $enableLogging = $data['enable_logging'] ?? '1';
         $maxLoginAttempts = $data['max_login_attempts'] ?? '5';
@@ -295,48 +242,51 @@ class Installer {
         }
     }
 
-    private function markStepCompleted($step, $message = '') {
+    private function markStepCompleted($step, $message = '')
+    {
         $this->db->query(
             "INSERT OR REPLACE INTO installation_status (step, status, message, completed_at) VALUES (?, ?, ?, ?)",
             [$step, 'completed', $message, date('Y-m-d H:i:s')]
         );
     }
 
-    public function getInstallationProgress() {
+    public function getInstallationProgress()
+    {
         $totalSteps = count($this->steps);
         $completedSteps = $this->db->select(
             "SELECT COUNT(*) as count FROM installation_status WHERE status = 'completed'"
         );
-        
+
         $completed = $completedSteps[0]['count'] ?? 0;
         return round(($completed / $totalSteps) * 100);
     }
 
-    public function createConfigFile($data) {
+    public function createConfigFile($data)
+    {
         $configContent = "<?php\n\n";
         $configContent .= "// WireGuard Admin Configuration\n";
         $configContent .= "// Generated on " . date('Y-m-d H:i:s') . "\n\n";
-        
+
         $configContent .= "// Database\n";
         $configContent .= "define('DB_PATH', __DIR__ . '/data/wg-admin.db');\n\n";
-        
+
         $configContent .= "// WireGuard Settings\n";
         $configContent .= "define('WG_CONF_PATH', '/etc/wireguard/wg0.conf');\n";
         $configContent .= "define('WG_IFACE', 'wg0');\n";
         $configContent .= "define('SERVER_IP', '{$data['server_ip']}');\n";
         $configContent .= "define('SERVER_PORT', '{$data['server_port']}');\n";
         $configContent .= "define('SUBNET', '{$data['subnet']}');\n\n";
-        
+
         $configContent .= "// Security Settings\n";
         $configContent .= "define('SESSION_TIMEOUT', {$data['session_timeout']});\n";
         $configContent .= "define('ENABLE_LOGGING', " . ($data['enable_logging'] ? 'true' : 'false') . ");\n";
         $configContent .= "define('MAX_LOGIN_ATTEMPTS', {$data['max_login_attempts']});\n\n";
-        
+
         $configContent .= "// Application Settings\n";
         $configContent .= "define('APP_NAME', 'WireGuard Admin');\n";
         $configContent .= "define('APP_VERSION', '2.0.0');\n";
         $configContent .= "define('TIMEZONE', 'UTC');\n\n";
-        
+
         $configContent .= "// Auto-loader\n";
         $configContent .= "spl_autoload_register(function (\$class) {\n";
         $configContent .= "    \$prefix = 'WireGuardAdmin\\\\';\n";
