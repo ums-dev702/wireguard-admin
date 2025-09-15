@@ -177,63 +177,136 @@
         class WireGuardInstaller {
             constructor() {
                 this.currentStep = 'welcome';
-                this.steps = {
-                    'welcome': {
-                        title: 'Welcome',
-                        icon: 'fas fa-home',
-                        description: 'Welcome to WireGuard Admin installation wizard',
-                        requirements: ['PHP 7.4+', 'WireGuard', 'MySql', 'Write permissions']
-                    },
-                    'requirements': {
-                        title: 'Requirements',
-                        icon: 'fas fa-check-circle',
-                        description: 'Checking system requirements'
-                    },
-                    'database': {
-                        title: 'Database',
-                        icon: 'fas fa-database',
-                        description: 'Database setup'
-                    },
-                    'admin_account': {
-                        title: 'Admin Account',
-                        icon: 'fas fa-user-shield',
-                        description: 'Create admin account'
-                    },
-                    'wireguard_config': {
-                        title: 'Configuration',
-                        icon: 'fas fa-cog',
-                        description: 'WireGuard configuration'
-                    },
-                    'security': {
-                        title: 'Security',
-                        icon: 'fas fa-lock',
-                        description: 'Security settings'
-                    },
-                    'complete': {
-                        title: 'Complete',
-                        icon: 'fas fa-check',
-                        description: 'Installation complete'
-                    }
-                };
+                this.steps = {};
                 this.init();
             }
 
-            init() {
+            async init() {
+                await this.fetchSteps();
+                await this.determineCurrentStep();
                 this.renderStepIndicators();
-                this.loadCurrentStep();
+                await this.loadCurrentStep();
+            }
+
+            async fetchSteps() {
+                try {
+                    const res = await fetch('install.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'action=get_steps'
+                    });
+                    const data = await res.json();
+                    if (data.success && data.steps) {
+                        this.steps = data.steps;
+                    } else {
+                        // Fallback to static steps if backend fails
+                        this.steps = {
+                            'welcome': {
+                                title: 'Welcome',
+                                icon: 'fas fa-home',
+                                description: 'Welcome to WireGuard Admin installation wizard'
+                            },
+                            'requirements': {
+                                title: 'Requirements',
+                                icon: 'fas fa-check-circle',
+                                description: 'Checking system requirements'
+                            },
+                            'database': {
+                                title: 'Database',
+                                icon: 'fas fa-database',
+                                description: 'Database setup'
+                            },
+                            'admin_account': {
+                                title: 'Admin Account',
+                                icon: 'fas fa-user-shield',
+                                description: 'Create admin account'
+                            },
+                            'wireguard_config': {
+                                title: 'Configuration',
+                                icon: 'fas fa-cog',
+                                description: 'WireGuard configuration'
+                            },
+                            'security': {
+                                title: 'Security',
+                                icon: 'fas fa-lock',
+                                description: 'Security settings'
+                            },
+                            'complete': {
+                                title: 'Complete',
+                                icon: 'fas fa-check',
+                                description: 'Installation complete'
+                            }
+                        };
+                    }
+                } catch (e) {
+                    console.error('Error fetching steps:', e);
+                    // Fallback to static steps
+                    this.steps = {
+                        'welcome': {
+                            title: 'Welcome',
+                            icon: 'fas fa-home',
+                            description: 'Welcome to WireGuard Admin installation wizard'
+                        },
+                        'requirements': {
+                            title: 'Requirements',
+                            icon: 'fas fa-check-circle',
+                            description: 'Checking system requirements'
+                        },
+                        'database': {
+                            title: 'Database',
+                            icon: 'fas fa-database',
+                            description: 'Database setup'
+                        },
+                        'admin_account': {
+                            title: 'Admin Account',
+                            icon: 'fas fa-user-shield',
+                            description: 'Create admin account'
+                        },
+                        'wireguard_config': {
+                            title: 'Configuration',
+                            icon: 'fas fa-cog',
+                            description: 'WireGuard configuration'
+                        },
+                        'security': {
+                            title: 'Security',
+                            icon: 'fas fa-lock',
+                            description: 'Security settings'
+                        },
+                        'complete': {
+                            title: 'Complete',
+                            icon: 'fas fa-check',
+                            description: 'Installation complete'
+                        }
+                    };
+                }
+            }
+
+            async determineCurrentStep() {
+                try {
+                    const res = await fetch('install.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'action=get_current_step'
+                    });
+                    const data = await res.json();
+                    if (data.success && data.step) {
+                        this.currentStep = data.step;
+                    }
+                } catch (e) {
+                    console.error('Error determining current step:', e);
+                    // Default to welcome step
+                    this.currentStep = 'welcome';
+                }
             }
 
             renderStepIndicators() {
                 const container = document.getElementById('step-indicators');
                 const stepKeys = Object.keys(this.steps);
-
                 container.innerHTML = stepKeys.map((stepKey, index) => {
                     const step = this.steps[stepKey];
                     const isActive = stepKey === this.currentStep;
                     const isCompleted = stepKeys.indexOf(this.currentStep) > index;
-
                     let classes = 'step-indicator w-10 h-10 rounded-full flex items-center justify-center text-sm font-medium';
-
                     if (isCompleted) {
                         classes += ' completed';
                     } else if (isActive) {
@@ -241,7 +314,6 @@
                     } else {
                         classes += ' bg-white bg-opacity-20 text-gray-300';
                     }
-
                     return `
                         <div class="flex items-center">
                             <div class="${classes}">
@@ -259,17 +331,15 @@
                     let content;
                     
                     if (this.currentStep === 'requirements') {
-                        // For requirements step, we'll use a placeholder and load via AJAX
                         content = this.generateRequirementsPlaceholder(stepInfo);
                         this.renderStepContent(content);
-                        // Load requirements after rendering the placeholder
-                        this.loadRequirements();
+                        await this.loadRequirements();
                     } else {
                         content = this.generateStepContent(this.currentStep, stepInfo);
                         this.renderStepContent(content);
                     }
                     
-                    const progress = this.calculateProgress();
+                    const progress = await this.calculateProgress();
                     this.updateProgress(progress);
                 } catch (error) {
                     this.showError('Failed to load installation step: ' + error.message);
@@ -295,6 +365,33 @@
                 }
             }
 
+            generateWelcomeContent(stepInfo) {
+                return `
+                <div class="text-center">
+                    <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
+                    <p class="text-xl text-gray-200 mb-8">${stepInfo.description}</p>
+                    
+                    <div class="bg-white bg-opacity-10 rounded-xl p-6 mb-8">
+                        <i class="fas fa-shield-alt text-4xl text-green-400 mb-4"></i>
+                        <p class="text-gray-200 mb-4">
+                            Welcome to the WireGuard Admin installation wizard. This will guide you through setting up your VPN management system.
+                        </p>
+                        <p class="text-gray-200">
+                            Before starting, make sure you have:
+                        </p>
+                        <ul class="list-disc list-inside text-gray-200 mt-2 space-y-1">
+                            <li>MySQL database credentials</li>
+                            <li>WireGuard installed on your server</li>
+                            <li>Server IP address or domain name</li>
+                        </ul>
+                    </div>
+                    
+                    <button id="next-btn" class="btn-primary text-white px-8 py-3 rounded-lg font-semibold">
+                        <i class="fas fa-rocket mr-2"></i>Start Installation
+                    </button>
+                </div>`;
+            }
+
             generateRequirementsPlaceholder(stepInfo) {
                 return `
                 <div class="text-center">
@@ -315,26 +412,47 @@
             }
 
             async loadRequirements() {
+                let requirements = [];
+                let allPassed = false;
+                let backendFailed = false;
                 try {
-                    // Call PHP API
-                    const response = await fetch('requirements.php');
+                    const response = await fetch('install.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'action=check_requirements'
+                    });
                     const data = await response.json();
-                    const requirements = data.requirements;
-                    const allPassed = requirements.every(req => req.status);
+                    if (data.success && data.requirements) {
+                        requirements = data.requirements;
+                        allPassed = requirements.every(req => req.status);
+                    } else {
+                        backendFailed = true;
+                    }
+                } catch (error) {
+                    backendFailed = true;
+                }
 
-                    let content = `
+                // Fallback to static requirements if backend fails
+                if (backendFailed) {
+                    requirements = [
+                        { name: 'PHP 7.4+', status: true, current: 'Detected', message: '' },
+                        { name: 'WireGuard', status: false, current: 'Not detected', message: 'Install WireGuard on your server.' },
+                        { name: 'MySQL', status: true, current: 'Detected', message: '' },
+                        { name: 'Write permissions', status: true, current: 'OK', message: '' }
+                    ];
+                    allPassed = requirements.every(req => req.status);
+                }
+
+                let content = `
             <div class="text-center">
                 <h2 class="text-3xl font-bold text-white mb-4">${this.steps.requirements.title}</h2>
                 <p class="text-xl text-gray-200 mb-8">${this.steps.requirements.description}</p>
-                
                 <div class="space-y-4 mb-8">`;
-
-                    requirements.forEach(req => {
-                        const statusClass = req.status ? 'passed' : 'failed';
-                        const iconClass = req.status ? 'fas fa-check-circle text-green-500' : 'fas fa-times-circle text-red-500';
-                        const bgClass = req.status ? 'bg-green-500 bg-opacity-20' : 'bg-red-500 bg-opacity-20';
-
-                        content += `
+                requirements.forEach(req => {
+                    const statusClass = req.status ? 'passed' : 'failed';
+                    const iconClass = req.status ? 'fas fa-check-circle text-green-500' : 'fas fa-times-circle text-red-500';
+                    const bgClass = req.status ? 'bg-green-500 bg-opacity-20' : 'bg-red-500 bg-opacity-20';
+                    content += `
                 <div class="requirement-item ${statusClass} ${bgClass} rounded-lg p-4 border-2">
                     <div class="flex items-center justify-between">
                         <div class="flex items-center">
@@ -343,104 +461,36 @@
                         </div>
                         <span class="text-gray-300 text-sm">${req.current}</span>
                     </div>
+                    ${req.message ? `<div class="text-xs mt-2 text-gray-300">${req.message}</div>` : ''}
                 </div>`;
-                    });
-
-                    content += `</div>`;
-
-                    if (allPassed) {
-                        content += `
+                });
+                content += `</div>`;
+                if (allPassed) {
+                    content += `
                 <div class="bg-green-500 bg-opacity-20 rounded-lg p-4 mb-6">
                     <div class="flex items-center justify-center text-green-400">
                         <i class="fas fa-check-circle mr-2"></i>
                         <span>All requirements passed!</span>
                     </div>
                 </div>
-                
                 <button id="next-btn" class="btn-primary text-white px-8 py-3 rounded-lg font-semibold">
                     <i class="fas fa-arrow-right mr-2"></i>Continue
                 </button>`;
-                    } else {
-                        content += `
+                } else {
+                    content += `
                 <div class="bg-red-500 bg-opacity-20 rounded-lg p-4 mb-6">
                     <div class="flex items-center justify-center text-red-400">
                         <i class="fas fa-exclamation-triangle mr-2"></i>
                         <span>Please fix the requirements above before continuing</span>
                     </div>
                 </div>
-                
                 <button onclick="location.reload()" class="btn-secondary text-white px-8 py-3 rounded-lg font-semibold">
                     <i class="fas fa-refresh mr-2"></i>Recheck
                 </button>`;
-                    }
-
-                    content += `</div>`;
-
-                    // Insert into container
-                    document.getElementById('installation-content').innerHTML = content;
-                    this.bindEventListeners();
-                } catch (error) {
-                    console.error('Error fetching requirements:', error);
-                    document.getElementById('installation-content').innerHTML = `
-            <div class="bg-red-500 bg-opacity-20 rounded-lg p-4">
-                <div class="flex items-center justify-center text-red-400">
-                    <i class="fas fa-exclamation-triangle mr-2"></i>
-                    <span>Failed to load requirements. Please try again later.</span>
-                </div>
-            </div>`;
                 }
-            }
-
-            generateWelcomeContent(stepInfo) {
-                return `
-                <div class="text-center">
-                    <div class="mb-8">
-                        <i class="fas fa-shield-alt text-6xl text-green-400 mb-4 vpn-icon"></i>
-                        <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
-                        <p class="text-xl text-gray-200 mb-6">${stepInfo.description}</p>
-                    </div>
-                    
-                    <div class="bg-white bg-opacity-10 rounded-xl p-6 mb-8">
-                        <h3 class="text-xl font-semibold text-white mb-4">Features</h3>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-                            <div class="flex items-center text-gray-200">
-                                <i class="fas fa-check text-green-400 mr-3"></i>
-                                Easy peer management
-                            </div>
-                            <div class="flex items-center text-gray-200">
-                                <i class="fas fa-check text-green-400 mr-3"></i>
-                                Port forwarding
-                            </div>
-                            <div class="flex items-center text-gray-200">
-                                <i class="fas fa-check text-green-400 mr-3"></i>
-                                Real-time monitoring
-                            </div>
-                            <div class="flex items-center text-gray-200">
-                                <i class="fas fa-check text-green-400 mr-3"></i>
-                                Secure authentication
-                            </div>
-                            <div class="flex items-center text-gray-200">
-                                <i class="fas fa-check text-green-400 mr-3"></i>
-                                Audit logging
-                            </div>
-                            <div class="flex items-center text-gray-200">
-                                <i class="fas fa-check text-green-400 mr-3"></i>
-                                Professional UI
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div class="bg-blue-500 bg-opacity-20 rounded-xl p-4 mb-8">
-                        <h4 class="text-lg font-semibold text-white mb-2">System Requirements</h4>
-                        <div class="text-gray-200 text-sm">
-                            ${stepInfo.requirements.join(' • ')}
-                        </div>
-                    </div>
-                    
-                    <button id="next-btn" class="btn-primary text-white px-8 py-3 rounded-lg font-semibold">
-                        <i class="fas fa-rocket mr-2"></i>Start Installation
-                    </button>
-                </div>`;
+                content += `</div>`;
+                document.getElementById('installation-content').innerHTML = content;
+                this.bindEventListeners();
             }
 
             generateDatabaseContent(stepInfo) {
@@ -571,7 +621,7 @@
                         <p class="text-xl text-gray-200">${stepInfo.description}</p>
                     </div>
                     
-                    <form class="max-w-md mx-auto space-y-6" id="--form">
+                    <form class="max-w-md mx-auto space-y-6" id="wireguard-form">
                         <div>
                             <label class="block text-white font-medium mb-2">
                                 <i class="fas fa-server mr-2"></i>Server IP/Domain
@@ -746,38 +796,51 @@
 
                 if (completeBtn) {
                     completeBtn.addEventListener('click', () => {
-                        this.showSuccess('Installation completed successfully!');
+                        window.location.href = 'admin/';
                     });
                 }
             }
 
             async handleFormSubmit(event) {
                 event.preventDefault();
-
                 const form = event.target;
                 const formData = new FormData(form);
                 const data = Object.fromEntries(formData);
-
+                
                 // Validate passwords match for admin account
                 if (form.id === 'admin-form' && data.password !== data.confirm_password) {
                     this.showError('Passwords do not match');
                     return;
                 }
-
+                
                 await this.processStep(data);
             }
 
             async processStep(data = {}) {
                 try {
                     this.showLoading(true);
-
-                    // Simulate server processing
-                    await new Promise(resolve => setTimeout(resolve, 1500));
-
-                    this.showSuccess('Step completed successfully!');
-                    setTimeout(() => {
-                        this.nextStep();
-                    }, 1500);
+                    
+                    // Send form data to backend
+                    const formData = new URLSearchParams();
+                    formData.append('action', 'complete_step');
+                    formData.append('step', this.currentStep);
+                    formData.append('data', JSON.stringify(data));
+                    
+                    const res = await fetch('install.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: formData
+                    });
+                    
+                    const result = await res.json();
+                    if (result.success) {
+                        this.showSuccess(result.message || 'Step completed successfully!');
+                        setTimeout(() => {
+                            this.nextStep();
+                        }, 1000);
+                    } else {
+                        this.showError(result.message || 'Processing failed');
+                    }
                 } catch (error) {
                     this.showError('Processing failed: ' + error.message);
                 } finally {
@@ -785,14 +848,14 @@
                 }
             }
 
-            nextStep() {
+            async nextStep() {
                 const stepKeys = Object.keys(this.steps);
                 const currentIndex = stepKeys.indexOf(this.currentStep);
 
                 if (currentIndex < stepKeys.length - 1) {
                     this.currentStep = stepKeys[currentIndex + 1];
                     this.renderStepIndicators();
-                    this.loadCurrentStep();
+                    await this.loadCurrentStep();
                 }
             }
 
@@ -807,7 +870,22 @@
                 }
             }
 
-            calculateProgress() {
+            async calculateProgress() {
+                try {
+                    const res = await fetch('install.php', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                        body: 'action=get_progress'
+                    });
+                    const data = await res.json();
+                    if (data.success && data.progress !== undefined) {
+                        return data.progress;
+                    }
+                } catch (e) {
+                    console.error('Error getting progress:', e);
+                }
+                
+                // Fallback calculation
                 const stepKeys = Object.keys(this.steps);
                 const currentIndex = stepKeys.indexOf(this.currentStep);
                 return Math.round((currentIndex / (stepKeys.length - 1)) * 100);
