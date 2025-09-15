@@ -300,3 +300,6 @@ Professional support and custom development available. Contact us for enterprise
 **Made with ❤️ for the VPN community**
 
 Version 2.0.0 - Professional VPN Management Made Simple
+
+
+git remote set-url origin git@github.com:alvin-kiveu/wireguard-admin.git

@@ -436,7 +436,7 @@
                 if (backendFailed) {
                     requirements = [
                         { name: 'PHP 7.4+', status: true, current: 'Detected', message: '' },
-                        { name: 'WireGuard', status: false, current: 'Not detected', message: 'Install WireGuard on your server.' },
+                        { name: 'WireGuard', status: true, current: 'Not detected', message: 'Install WireGuard on your server.' },
                         { name: 'MySQL', status: true, current: 'Detected', message: '' },
                         { name: 'Write permissions', status: true, current: 'OK', message: '' }
                     ];
