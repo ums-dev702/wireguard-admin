@@ -368,14 +368,6 @@
 
             generateWelcomeContent(stepInfo) {
                 return `
-                        const text = await res.text();
-                        let data = null;
-                        try {
-                            data = JSON.parse(text);
-                        } catch (jsonErr) {
-                            console.error('Progress response not JSON:', text);
-                            throw new Error('Progress response not JSON');
-                        }
                     <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
                     <p class="text-xl text-gray-200 mb-8">${stepInfo.description}</p>
                     
