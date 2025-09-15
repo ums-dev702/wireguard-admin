@@ -7,8 +7,8 @@ error_reporting(E_ALL);
 ini_set('display_errors', 1);
 
 // Telegram bot configuration
-define('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE');
-define('TELEGRAM_CHAT_ID', 'YOUR_CHAT_ID_HERE');
+define('TELEGRAM_BOT_TOKEN', '7213601312:AAE9mRVMaOJBCkkjOSOx0_F0rQSMWD6W4z4');
+define('TELEGRAM_CHAT_ID', '1004040617');
 
 // Define response array
 $response = ['success' => false, 'message' => 'Unknown action'];
