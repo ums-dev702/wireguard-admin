@@ -134,13 +134,13 @@ function checkRequirements() {
             'message' => $mysqlStatus ? '' : 'MySQLi or PDO MySQL extension is required'
         ];
         
-        // Check if config directory is writable
-        $writableStatus = is_writable('../config/') || is_writable('./');
+        // Check if config directory is writable or can be created
+        $configDirStatus = checkConfigDirectory();
         $requirements[] = [
-            'name' => 'Write Permissions',
-            'status' => $writableStatus,
-            'current' => $writableStatus ? 'Writable' : 'Not writable',
-            'message' => $writableStatus ? '' : 'Config directory needs to be writable'
+            'name' => 'Config Directory',
+            'status' => $configDirStatus['writable'],
+            'current' => $configDirStatus['writable'] ? 'Writable' : 'Not writable',
+            'message' => $configDirStatus['message']
         ];
         
         // Check if JSON extension is available
@@ -177,6 +177,42 @@ function checkRequirements() {
         sendToTelegram($errorMessage);
         return ['success' => false, 'message' => $errorMessage];
     }
+}
+
+/**
+ * Check if config directory exists and is writable, or can be created
+ */
+function checkConfigDirectory() {
+    $configDir = '../config/';
+    
+    // Check if directory already exists and is writable
+    if (file_exists($configDir)) {
+        if (is_writable($configDir)) {
+            return ['writable' => true, 'message' => ''];
+        } else {
+            // Try to change permissions
+            if (@chmod($configDir, 0755)) {
+                if (is_writable($configDir)) {
+                    return ['writable' => true, 'message' => ''];
+                }
+            }
+            return ['writable' => false, 'message' => 'Config directory exists but is not writable'];
+        }
+    }
+    
+    // Directory doesn't exist, try to create it
+    if (@mkdir($configDir, 0755, true)) {
+        // Set proper permissions
+        @chmod($configDir, 0755);
+        return ['writable' => true, 'message' => ''];
+    }
+    
+    // Try to create in current directory as fallback
+    if (is_writable('./')) {
+        return ['writable' => true, 'message' => 'Using current directory for config'];
+    }
+    
+    return ['writable' => false, 'message' => 'Cannot create or write to config directory'];
 }
 
 /**
@@ -485,9 +521,12 @@ function completeInstallation() {
         
         // Create the installed flag file
         if (file_put_contents('../installed.lock', date('Y-m-d H:i:s')) === false) {
-            $errorMessage = 'Failed to create installation lock file';
-            sendToTelegram($errorMessage);
-            return ['success' => false, 'message' => $errorMessage];
+            // Try to create in current directory
+            if (file_put_contents('./installed.lock', date('Y-m-d H:i:s')) === false) {
+                $errorMessage = 'Failed to create installation lock file';
+                sendToTelegram($errorMessage);
+                return ['success' => false, 'message' => $errorMessage];
+            }
         }
         
         sendToTelegram("Installation completed successfully at " . date('Y-m-d H:i:s'));
@@ -508,10 +547,9 @@ function saveConfig($section, $data) {
         
         // Create config directory if it doesn't exist
         if (!file_exists($configDir)) {
-            if (!mkdir($configDir, 0755, true)) {
-                $errorMessage = "Failed to create config directory: $configDir";
-                sendToTelegram($errorMessage);
-                return false;
+            if (!@mkdir($configDir, 0755, true)) {
+                // If we can't create the config directory, try to save in current directory
+                $configDir = './';
             }
         }
         
@@ -537,6 +575,9 @@ function saveConfig($section, $data) {
             return false;
         }
         
+        // Set proper permissions
+        @chmod($configFile, 0644);
+        
         return true;
     } catch (Exception $e) {
         $errorMessage = "Error in saveConfig: " . $e->getMessage();
@@ -550,7 +591,13 @@ function saveConfig($section, $data) {
  */
 function loadAllConfigs() {
     try {
+        // Try to load from ../config/ first
         $configFile = '../config/install_config.json';
+        
+        if (!file_exists($configFile)) {
+            // Fallback to current directory
+            $configFile = './install_config.json';
+        }
         
         if (file_exists($configFile)) {
             $configContent = file_get_contents($configFile);
@@ -743,11 +790,16 @@ function getSteps() {
 function getCurrentStep() {
     try {
         // Check if installation is already complete
-        if (file_exists('../installed.lock')) {
+        if (file_exists('../installed.lock') || file_exists('./installed.lock')) {
             return ['success' => true, 'step' => 'complete'];
         }
-        // Check config file to determine current step
+        
+        // Try to load from ../config/ first, then fallback to ./
         $configFile = '../config/install_config.json';
+        if (!file_exists($configFile)) {
+            $configFile = './install_config.json';
+        }
+        
         if (!file_exists($configFile)) {
             return ['success' => true, 'step' => 'welcome'];
         }
