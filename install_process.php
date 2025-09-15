@@ -543,21 +543,17 @@ function getCurrentStep() {
     if (file_exists('../installed.lock')) {
         return ['success' => true, 'step' => 'complete'];
     }
-    
     // Check config file to determine current step
     $configFile = '../config/install_config.json';
-    
     if (!file_exists($configFile)) {
         return ['success' => true, 'step' => 'welcome'];
     }
-    
     $config = json_decode(file_get_contents($configFile), true);
-    
     if (isset($config['security'])) {
         return ['success' => true, 'step' => 'complete'];
-    } elseif (isset($config['wireguard_config'])) {
+    } elseif (isset($config['wireguard'])) {
         return ['success' => true, 'step' => 'security'];
-    } elseif (isset($config['admin_account'])) {
+    } elseif (isset($config['admin'])) {
         return ['success' => true, 'step' => 'wireguard_config'];
     } elseif (isset($config['database'])) {
         return ['success' => true, 'step' => 'admin_account'];
