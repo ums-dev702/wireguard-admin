@@ -331,7 +331,6 @@
                 try {
                     const stepInfo = this.steps[this.currentStep];
                     let content;
-                    
                     if (this.currentStep === 'requirements') {
                         content = this.generateRequirementsPlaceholder(stepInfo);
                         this.renderStepContent(content);
@@ -340,9 +339,9 @@
                         content = this.generateStepContent(this.currentStep, stepInfo);
                         this.renderStepContent(content);
                     }
-                    
-                    const progress = await this.calculateProgress();
-                    this.updateProgress(progress);
+                    this.calculateProgress().then(progress => {
+                        this.updateProgress(progress);
+                    });
                 } catch (error) {
                     this.showError('Failed to load installation step: ' + error.message);
                 }
@@ -369,7 +368,14 @@
 
             generateWelcomeContent(stepInfo) {
                 return `
-                <div class="text-center">
+                        const text = await res.text();
+                        let data = null;
+                        try {
+                            data = JSON.parse(text);
+                        } catch (jsonErr) {
+                            console.error('Progress response not JSON:', text);
+                            throw new Error('Progress response not JSON');
+                        }
                     <h2 class="text-3xl font-bold text-white mb-4">${stepInfo.title}</h2>
                     <p class="text-xl text-gray-200 mb-8">${stepInfo.description}</p>
                     
