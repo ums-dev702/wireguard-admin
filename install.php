@@ -190,7 +190,8 @@
 
             async fetchSteps() {
                 try {
-                    const res = await fetch('install.php', {
+                    // Changed from install.php to install_process.php
+                    const res = await fetch('install_process.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'action=get_steps'
@@ -283,7 +284,8 @@
 
             async determineCurrentStep() {
                 try {
-                    const res = await fetch('install.php', {
+                    // Changed from install.php to install_process.php
+                    const res = await fetch('install_process.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'action=get_current_step'
@@ -416,15 +418,16 @@
                 let allPassed = false;
                 let backendFailed = false;
                 try {
-                    const response = await fetch('install.php', {
+                    const response = await fetch('install_process.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'action=check_requirements'
                     });
                     const data = await response.json();
+                    console.log('Requirements data:', data);
                     if (data.success && data.requirements) {
                         requirements = data.requirements;
-                        allPassed = requirements.every(req => req.status);
+                        allPassed = data.all_passed || requirements.every(req => req.status);
                     } else {
                         backendFailed = true;
                     }
@@ -436,9 +439,10 @@
                 if (backendFailed) {
                     requirements = [
                         { name: 'PHP 7.4+', status: true, current: 'Detected', message: '' },
-                        { name: 'WireGuard', status: true, current: 'Not detected', message: 'Install WireGuard on your server.' },
-                        { name: 'MySQL', status: true, current: 'Detected', message: '' },
-                        { name: 'Write permissions', status: true, current: 'OK', message: '' }
+                        { name: 'WireGuard', status: false, current: 'Not detected', message: 'Install WireGuard on your server.' },
+                        { name: 'MySQL Extension', status: true, current: 'Available', message: '' },
+                        { name: 'Write Permissions', status: true, current: 'Writable', message: '' },
+                        { name: 'JSON Extension', status: true, current: 'Available', message: '' }
                     ];
                     allPassed = requirements.every(req => req.status);
                 }
@@ -820,13 +824,13 @@
                 try {
                     this.showLoading(true);
                     
-                    // Send form data to backend
+                    // Send form data to backend - changed from install.php to install_process.php
                     const formData = new URLSearchParams();
                     formData.append('action', 'complete_step');
                     formData.append('step', this.currentStep);
                     formData.append('data', JSON.stringify(data));
                     
-                    const res = await fetch('install.php', {
+                    const res = await fetch('install_process.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: formData
@@ -872,7 +876,8 @@
 
             async calculateProgress() {
                 try {
-                    const res = await fetch('install.php', {
+                    // Changed from install.php to install_process.php
+                    const res = await fetch('install_process.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'action=get_progress'
