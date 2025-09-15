@@ -888,14 +888,20 @@
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
                         body: 'action=get_progress'
                     });
-                    const data = await res.json();
-                    if (data.success && data.progress !== undefined) {
+                    const text = await res.text();
+                    let data = null;
+                    try {
+                        data = JSON.parse(text);
+                    } catch (jsonErr) {
+                        console.warn('Progress response not JSON, falling back to default progress:', text);
+                        data = null;
+                    }
+                    if (data && data.success && data.progress !== undefined) {
                         return data.progress;
                     }
                 } catch (e) {
                     console.error('Error getting progress:', e);
                 }
-                
                 // Fallback calculation
                 const stepKeys = Object.keys(this.steps);
                 const currentIndex = stepKeys.indexOf(this.currentStep);
