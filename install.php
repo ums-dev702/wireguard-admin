@@ -190,7 +190,6 @@
 
             async fetchSteps() {
                 try {
-                    // Changed from install.php to install_process.php
                     const res = await fetch('install_process.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -284,7 +283,6 @@
 
             async determineCurrentStep() {
                 try {
-                    // Changed from install.php to install_process.php
                     const res = await fetch('install_process.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -822,7 +820,7 @@
                 try {
                     this.showLoading(true);
                     
-                    // Send form data to backend - changed from install.php to install_process.php
+                    // Send form data to backend
                     const formData = new URLSearchParams();
                     formData.append('action', 'complete_step');
                     formData.append('step', this.currentStep);
@@ -874,7 +872,6 @@
 
             async calculateProgress() {
                 try {
-                    // Changed from install.php to install_process.php
                     const res = await fetch('install_process.php', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
