@@ -226,14 +226,22 @@ class WireGuard {
 
     public function getSystemStats() {
         $stats = [];
-        
-        // System load
-        $load = sys_getloadavg();
-        $stats['load'] = [
-            '1min' => $load[0],
-            '5min' => $load[1],
-            '15min' => $load[2]
-        ];
+        // System load (cross-platform)
+        if (function_exists('sys_getloadavg')) {
+            $load = sys_getloadavg();
+            $stats['load'] = [
+                '1min' => $load[0],
+                '5min' => $load[1],
+                '15min' => $load[2]
+            ];
+        } else {
+            // Not available on Windows, set to 0
+            $stats['load'] = [
+                '1min' => 0,
+                '5min' => 0,
+                '15min' => 0
+            ];
+        }
 
         // Memory usage
         if (file_exists('/proc/meminfo')) {

@@ -1,10 +1,15 @@
+
 <?php
 require_once __DIR__ . '/config.php';
-
+require_once __DIR__ . '/autoloader.php';
+// Ensure $port_rules is always an array before any usage
+if (!isset($port_rules) || !is_array($port_rules)) {
+    $port_rules = [];
+}
 try {
     $db = new \WireGuardAdmin\Database();
     $auth = new \WireGuardAdmin\Auth($db, SESSION_TIMEOUT);
-    $wg = new \WireGuardAdmin\WireGuard($db, WG_IFACE);
+   $wg = new \WireGuardAdmin\WireGuard($db, WG_IFACE);
     
     // Check authentication
     $auth->requireAuth('/login.php');
@@ -142,7 +147,6 @@ try {
                     Audit Logs
                 </a>
             </nav>
-            
             <!-- User Menu -->
             <div class="p-4 border-t">
                 <div class="flex items-center mb-3">
@@ -219,11 +223,21 @@ try {
                         <div class="w-12 h-12 bg-yellow-100 rounded-lg flex items-center justify-center">
                             <i class="fas fa-memory text-yellow-600 text-xl"></i>
                         </div>
-                        <span class="text-2xl font-bold text-gray-800"><?= $systemStats['memory']['percent'] ?>%</span>
+                        <span class="text-2xl font-bold text-gray-800">
+                            <?php if (isset($systemStats['memory']) && isset($systemStats['memory']['percent'])): ?>
+                                <?= $systemStats['memory']['percent'] ?>%
+                            <?php else: ?>
+                                N/A
+                            <?php endif; ?>
+                        </span>
                     </div>
                     <h3 class="text-sm font-medium text-gray-600 mb-1">Memory Usage</h3>
                     <div class="w-full bg-gray-200 rounded-full h-2">
-                        <div class="bg-yellow-600 h-2 rounded-full progress-bar" style="width: <?= $systemStats['memory']['percent'] ?>%"></div>
+                        <?php if (isset($systemStats['memory']) && isset($systemStats['memory']['percent'])): ?>
+                            <div class="bg-yellow-600 h-2 rounded-full progress-bar" style="width: <?= $systemStats['memory']['percent'] ?>%"></div>
+                        <?php else: ?>
+                            <div class="bg-yellow-200 h-2 rounded-full progress-bar" style="width: 100%"></div>
+                        <?php endif; ?>
                     </div>
                 </div>
 
@@ -397,10 +411,20 @@ try {
                     </svg>
                     <h3 class="text-lg font-semibold text-gray-700">Disk</h3>
                 </div>
-                <p class="text-2xl font-bold text-gray-800"><?= $diskpercent ?>%</p>
-                <p class="text-sm text-gray-600"><?= format_bytes($diskused) ?> / <?= format_bytes($disktotal) ?></p>
+                <p class="text-2xl font-bold text-gray-800">
+                    <?php if (isset($systemStats['disk']) && isset($systemStats['disk']['percent'])): ?>
+                        <?= $systemStats['disk']['percent'] ?>%
+                    <?php else: ?>
+                        N/A
+                    <?php endif; ?>
+                </p>
+                <p class="text-sm text-gray-600">&nbsp;</p>
                 <div class="w-full bg-gray-200 rounded-full h-2.5 mt-2">
-                    <div class="bg-yellow-600 h-2.5 rounded-full progress-bar" style="width: <?= $diskpercent ?>%"></div>
+                    <?php if (isset($systemStats['disk']) && isset($systemStats['disk']['percent'])): ?>
+                        <div class="bg-yellow-600 h-2.5 rounded-full progress-bar" style="width: <?= $systemStats['disk']['percent'] ?>%"></div>
+                    <?php else: ?>
+                        <div class="bg-yellow-200 h-2.5 rounded-full progress-bar" style="width: 100%"></div>
+                    <?php endif; ?>
                 </div>
             </div>
 
