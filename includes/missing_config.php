@@ -192,63 +192,15 @@
                     <li>Antivirus software blocking the configuration file</li>
                     <li>Corrupted installation files</li>
                 </ul>
-                <div class="error-code">Error Code: VPN-INSTALL-102 | File: config.php</div>
+                <div class="error-code"> File: config.php</div>
             </div>
+          
             
-            <div class="section">
-                <h3><i class="fas fa-tools"></i> Resolution Steps</h3>
-                <p>Please follow these steps to resolve the issue:</p>
-                
-                <div class="steps">
-                    <div class="step">
-                        <div class="step-number">1</div>
-                        <div>
-                            <strong>Verify the installation package</strong>
-                            <p>Ensure you have downloaded the complete VPN installation package from the official website.</p>
-                        </div>
-                    </div>
-                    
-                    <div class="step">
-                        <div class="step-number">2</div>
-                        <div>
-                            <strong>Check your antivirus software</strong>
-                            <p>Temporarily disable your antivirus during installation or add the VPN software to the exclusion list.</p>
-                        </div>
-                    </div>
-                    
-                    <div class="step">
-                        <div class="step-number">3</div>
-                        <div>
-                            <strong>Create configuration file manually</strong>
-                            <p>Copy <code>config_sample.php</code> to <code>config.php</code> and adjust the settings as needed.</p>
-                        </div>
-                    </div>
-                    
-                    <div class="step">
-                        <div class="step-number">4</div>
-                        <div>
-                            <strong>Re-run the installation</strong>
-                            <p>Restart the installation process after completing the above steps.</p>
-                        </div>
-                    </div>
-                </div>
-                
-                <a href="#" class="button"><i class="fas fa-download"></i> Download Latest Version</a>
-            </div>
-            
-            <div class="section">
-                <h3><i class="fas fa-life-ring"></i> Need Further Assistance?</h3>
-                <p>If you continue to experience issues, our support team is available to help:</p>
-                <p style="margin-top: 15px;">
-                    <a href="#" class="button"><i class="fas fa-envelope"></i> Contact Support</a>
-                    <a href="#" class="button" style="background: #6c757d;"><i class="fas fa-book"></i> Knowledge Base</a>
-                </p>
-            </div>
         </div>
         
         <div class="footer">
-            <p>© 2023 SecureVPN | All Rights Reserved</p>
-            <p>Error Page v1.2</p>
+            <p>© 2025 WireGuard Admin | All Rights Reserved</p>
+            <p>Error Page v1.0</p>
         </div>
     </div>
 </body>
