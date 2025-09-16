@@ -151,43 +151,138 @@ try {
             background: rgba(0, 0, 0, 0.7);
             backdrop-filter: blur(5px);
         }
+
+        /* Mobile menu button */
+        .mobile-menu-button {
+            display: none;
+        }
+
+        /* Responsive adjustments */
+        @media (max-width: 1024px) {
+            .sidebar {
+                transform: translateX(-100%);
+                transition: transform 0.3s ease-in-out;
+                z-index: 40;
+                width: 70%;
+                max-width: 300px;
+            }
+            
+            .sidebar.open {
+                transform: translateX(0);
+            }
+            
+            .mobile-menu-button {
+                display: block;
+            }
+            
+            .main-content {
+                margin-left: 0 !important;
+            }
+            
+            .overlay {
+                display: none;
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                bottom: 0;
+                background: rgba(0, 0, 0, 0.5);
+                z-index: 30;
+            }
+            
+            .overlay.active {
+                display: block;
+            }
+        }
+
+        @media (max-width: 768px) {
+            .stat-number {
+                font-size: 1.5rem;
+            }
+            
+            .stats-grid {
+                grid-template-columns: repeat(2, 1fr) !important;
+            }
+            
+            .peer-grid {
+                grid-template-columns: 1fr !important;
+            }
+            
+            .table-responsive {
+                overflow-x: auto;
+            }
+            
+            table {
+                min-width: 600px;
+            }
+        }
+
+        @media (max-width: 640px) {
+            .stats-grid {
+                grid-template-columns: 1fr !important;
+            }
+            
+            .top-bar-content {
+                flex-direction: column;
+                align-items: flex-start !important;
+            }
+            
+            .status-indicator {
+                margin-top: 0.5rem;
+            }
+        }
     </style>
 </head>
 
 <body class="min-h-screen">
+    <!-- Mobile menu button -->
+    <div class="mobile-menu-button fixed top-4 left-4 z-50 lg:hidden">
+        <button id="menu-toggle" class="p-2 rounded-lg bg-black bg-opacity-30 text-white">
+            <i class="fas fa-bars"></i>
+        </button>
+    </div>
+
+    <!-- Overlay for mobile menu -->
+    <div id="overlay" class="overlay" onclick="closeMenu()"></div>
+
     <!-- Navigation Sidebar -->
-    <div class="fixed inset-y-0 left-0 w-64 sidebar z-30" id="sidebar">
+    <div class="fixed inset-y-0 left-0 w-64 sidebar z-40 lg:z-30 transform lg:transform-none" id="sidebar">
         <div class="flex flex-col h-full">
-            <!-- Logo -->
-            <div class="flex items-center justify-center p-6 border-b border-gray-800">
-                <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-green-700 rounded-lg flex items-center justify-center mr-3">
-                    <i class="fas fa-shield-alt text-white"></i>
+            <!-- Logo and close button for mobile -->
+            <div class="flex items-center justify-between p-6 border-b border-gray-800">
+                <div class="flex items-center">
+                    <div class="w-10 h-10 bg-gradient-to-r from-green-500 to-green-700 rounded-lg flex items-center justify-center mr-3">
+                        <i class="fas fa-shield-alt text-white"></i>
+                    </div>
+                    <div>
+                        <h1 class="text-xl font-bold text-white"><?= APP_NAME ?></h1>
+                        <p class="text-xs text-gray-400">v<?= APP_VERSION ?></p>
+                    </div>
                 </div>
-                <div>
-                    <h1 class="text-xl font-bold text-white"><?= APP_NAME ?></h1>
-                    <p class="text-xs text-gray-400">v<?= APP_VERSION ?></p>
-                </div>
+                <button class="lg:hidden text-gray-400 hover:text-white" onclick="closeMenu()">
+                    <i class="fas fa-times"></i>
+                </button>
             </div>
 
             <!-- Navigation Menu -->
             <nav class="flex-1 p-4 space-y-1">
-                <a href="dashboard.php" class="nav-link active flex items-center p-3">
+                <a href="dashboard.php" class="nav-link active flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-tachometer-alt mr-3 text-green-500"></i>
                     Dashboard
                 </a>
-                <a href="wg-peers.php" class="nav-link flex items-center p-3">
+                <a href="wg-peers.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-users mr-3 text-blue-400"></i>
                     VPN Peers
                 </a>
-                <a href="port-forwarding.php" class="nav-link flex items-center p-3">
+                <a href="port-forwarding.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-network-wired mr-3 text-purple-400"></i>
                     Port Forwarding
                 </a>
-                <a href="settings.php" class="nav-link flex items-center p-3">
+                <a href="settings.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-cog mr-3 text-yellow-400"></i>
                     Settings
                 </a>
-                <a href="logs.php" class="nav-link flex items-center p-3">
+                <a href="logs.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-file-alt mr-3 text-red-400"></i>
                     Audit Logs
                 </a>
@@ -204,7 +299,7 @@ try {
                         <p class="text-xs text-gray-400"><?= htmlspecialchars($currentUser['role']) ?></p>
                     </div>
                 </div>
-                <a href="logout.php" class="nav-link flex items-center p-2 text-red-400">
+                <a href="logout.php" class="nav-link flex items-center p-2 text-red-400" onclick="closeMenuOnMobile()">
                     <i class="fas fa-sign-out-alt mr-3"></i>
                     Logout
                 </a>
