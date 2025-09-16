@@ -1,7 +1,7 @@
 <?php
 // Application Settings
-define('APP_NAME', 'WireGuard Admin');
-define('APP_VERSION', '1.0.0');
+define('APP_NAME', 'WireGuard Admin'); // Application Settings
+define('APP_VERSION', '1.0.0'); // Application Settings
 define('TIMEZONE', 'UTC');
 define('WG_DEBUG', true);
 define('DB_HOST', 'localhost');
