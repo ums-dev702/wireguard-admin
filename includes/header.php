@@ -63,6 +63,8 @@ try {
             transition: all 0.3s ease;
         }
 
+
+
         .glass-card:hover {
             transform: translateY(-5px);
             box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
@@ -145,6 +147,7 @@ try {
             background: rgba(0, 0, 0, 0.3);
             backdrop-filter: blur(15px);
             border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+
         }
 
         .loading-overlay {
@@ -166,19 +169,21 @@ try {
                 width: 70%;
                 max-width: 300px;
             }
-            
+
             .sidebar.open {
                 transform: translateX(0);
             }
-            
+
             .mobile-menu-button {
                 display: block;
+                z-index: 50;
+                color: red;
             }
-            
+
             .main-content {
                 margin-left: 0 !important;
             }
-            
+
             .overlay {
                 display: none;
                 position: fixed;
@@ -189,7 +194,7 @@ try {
                 background: rgba(0, 0, 0, 0.5);
                 z-index: 30;
             }
-            
+
             .overlay.active {
                 display: block;
             }
@@ -199,19 +204,19 @@ try {
             .stat-number {
                 font-size: 1.5rem;
             }
-            
+
             .stats-grid {
                 grid-template-columns: repeat(2, 1fr) !important;
             }
-            
+
             .peer-grid {
                 grid-template-columns: 1fr !important;
             }
-            
+
             .table-responsive {
                 overflow-x: auto;
             }
-            
+
             table {
                 min-width: 600px;
             }
@@ -221,15 +226,19 @@ try {
             .stats-grid {
                 grid-template-columns: 1fr !important;
             }
-            
+
             .top-bar-content {
                 flex-direction: column;
                 align-items: flex-start !important;
             }
-            
+
             .status-indicator {
                 margin-top: 0.5rem;
             }
+        }
+
+        #menu-toggle {
+            color: var(--accent-color);
         }
     </style>
 </head>
