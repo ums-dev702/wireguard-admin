@@ -2,26 +2,30 @@
 
 namespace WireGuardAdmin;
 
-class Auth {
+class Auth
+{
     private $db;
     private $sessionTimeout;
 
-    public function __construct(Database $db, $sessionTimeout = 1800) {
+    public function __construct(Database $db, $sessionTimeout = 1800)
+    {
         $this->db = $db;
         $this->sessionTimeout = $sessionTimeout;
         $this->startSession();
     }
 
-    private function startSession() {
+    private function startSession()
+    {
         if (session_status() === PHP_SESSION_NONE) {
             session_start();
         }
     }
 
-    public function login($username, $password, $rememberMe = false) {
+    public function login($username, $password, $rememberMe = false)
+    {
         try {
             $user = $this->db->selectOne(
-                "SELECT * FROM users WHERE username = ? AND is_active = 1",
+                "SELECT * FROM users WHERE username = ? AND status = 'active'",
                 [$username]
             );
 
@@ -34,9 +38,10 @@ class Auth {
                 $_SESSION['login_time'] = time();
 
                 // Update last login
-                $this->db->update('users', 
-                    ['last_login' => date('Y-m-d H:i:s')], 
-                    'id = ?', 
+                $this->db->update(
+                    'users',
+                    ['last_login' => date('Y-m-d H:i:s')],
+                    'id = ?',
                     [$user['id']]
                 );
 
@@ -54,28 +59,29 @@ class Auth {
             // Log failed login attempt
             $this->logActivity(null, 'failed_login', "Failed login attempt for username: {$username}");
             return false;
-
         } catch (\Exception $e) {
             error_log("Login error: " . $e->getMessage());
             return false;
         }
     }
 
-    public function logout() {
+    public function logout()
+    {
         if (isset($_SESSION['user_id'])) {
             $this->logActivity($_SESSION['user_id'], 'logout', 'User logged out');
         }
 
         session_unset();
         session_destroy();
-        
+
         // Clear remember me cookie
         if (isset($_COOKIE['remember_token'])) {
             setcookie('remember_token', '', time() - 3600, '/');
         }
     }
 
-    public function isAuthenticated() {
+    public function isAuthenticated()
+    {
         // Check session authentication
         if (isset($_SESSION['authenticated']) && $_SESSION['authenticated'] === true) {
             // Check session timeout
@@ -83,7 +89,7 @@ class Auth {
                 $this->logout();
                 return false;
             }
-            
+
             $_SESSION['last_activity'] = time();
             return true;
         }
@@ -96,18 +102,21 @@ class Auth {
         return false;
     }
 
-    public function requireAuth($redirectTo = '/login.php') {
+    public function requireAuth($redirectTo = '/login.php')
+    {
         if (!$this->isAuthenticated()) {
             header("Location: {$redirectTo}");
             exit;
         }
     }
 
-    public function hasRole($role) {
+    public function hasRole($role)
+    {
         return isset($_SESSION['role']) && $_SESSION['role'] === $role;
     }
 
-    public function getCurrentUser() {
+    public function getCurrentUser()
+    {
         if (!$this->isAuthenticated()) {
             return null;
         }
@@ -118,10 +127,11 @@ class Auth {
         );
     }
 
-    public function createUser($username, $password, $email = null, $role = 'admin') {
+    public function createUser($username, $password, $email = null, $role = 'admin')
+    {
         try {
             $hashedPassword = password_hash($password, PASSWORD_DEFAULT);
-            
+
             return $this->db->insert('users', [
                 'username' => $username,
                 'password' => $hashedPassword,
@@ -133,13 +143,15 @@ class Auth {
         }
     }
 
-    public function changePassword($userId, $newPassword) {
+    public function changePassword($userId, $newPassword)
+    {
         try {
             $hashedPassword = password_hash($newPassword, PASSWORD_DEFAULT);
-            
-            $this->db->update('users', 
-                ['password' => $hashedPassword], 
-                'id = ?', 
+
+            $this->db->update(
+                'users',
+                ['password' => $hashedPassword],
+                'id = ?',
                 [$userId]
             );
 
@@ -151,10 +163,11 @@ class Auth {
         }
     }
 
-    private function setRememberMeCookie($userId) {
+    private function setRememberMeCookie($userId)
+    {
         $token = bin2hex(random_bytes(32));
         $hashedToken = hash('sha256', $token);
-        
+
         // Store hashed token in database (you'd need to add this table)
         $this->db->insert('remember_tokens', [
             'user_id' => $userId,
@@ -166,9 +179,10 @@ class Auth {
         setcookie('remember_token', $token, time() + (30 * 24 * 60 * 60), '/', '', true, true);
     }
 
-    private function validateRememberToken($token) {
+    private function validateRememberToken($token)
+    {
         $hashedToken = hash('sha256', $token);
-        
+
         $result = $this->db->selectOne(
             "SELECT u.* FROM users u 
              JOIN remember_tokens rt ON u.id = rt.user_id 
@@ -182,14 +196,15 @@ class Auth {
             $_SESSION['role'] = $result['role'];
             $_SESSION['authenticated'] = true;
             $_SESSION['last_activity'] = time();
-            
+
             return true;
         }
 
         return false;
     }
 
-    public function logActivity($userId, $action, $description, $ipAddress = null, $userAgent = null) {
+    public function logActivity($userId, $action, $description, $ipAddress = null, $userAgent = null)
+    {
         try {
             $this->db->insert('audit_log', [
                 'user_id' => $userId,
@@ -203,7 +218,8 @@ class Auth {
         }
     }
 
-    public function getAuditLog($limit = 100, $offset = 0) {
+    public function getAuditLog($limit = 100, $offset = 0)
+    {
         return $this->db->select(
             "SELECT al.*, u.username 
              FROM audit_log al 
@@ -214,11 +230,13 @@ class Auth {
         );
     }
 
-    public function validateCSRFToken($token) {
+    public function validateCSRFToken($token)
+    {
         return isset($_SESSION['csrf_token']) && hash_equals($_SESSION['csrf_token'], $token);
     }
 
-    public function generateCSRFToken() {
+    public function generateCSRFToken()
+    {
         if (!isset($_SESSION['csrf_token'])) {
             $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
         }
