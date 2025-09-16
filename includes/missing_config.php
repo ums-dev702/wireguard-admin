@@ -170,7 +170,7 @@
 <body>
     <div class="container">
         <div class="header">
-            <h1><i class="fas fa-exclamation-triangle"></i> VPN Installation Error</h1>
+            <h1><i class="fas fa-exclamation-triangle"></i> WireGuard Installation Error</h1>
             <p>We encountered a problem during the installation process</p>
         </div>
         
@@ -182,20 +182,6 @@
                     <p>The system could not locate the required configuration file for your VPN installation.</p>
                 </div>
             </div>
-            
-            <div class="section">
-                <h3><i class="fas fa-info-circle"></i> Error Details</h3>
-                <p>The installation process failed because the main configuration file was not found. This is typically caused by:</p>
-                <ul style="padding-left: 20px; margin: 15px 0;">
-                    <li>Incomplete download of the installation package</li>
-                    <li>File permission issues during extraction</li>
-                    <li>Antivirus software blocking the configuration file</li>
-                    <li>Corrupted installation files</li>
-                </ul>
-                <div class="error-code"> File: config.php</div>
-            </div>
-          
-            
         </div>
         
         <div class="footer">
