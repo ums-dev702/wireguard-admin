@@ -1,3 +1,4 @@
+</div>
 <script>
     // Menu functionality for mobile
     function toggleMenu() {

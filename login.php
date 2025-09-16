@@ -214,6 +214,24 @@ $csrfToken = $auth->generateCSRFToken();
             <div class="glass-effect rounded-2xl p-8 backdrop-blur-lg">
                 <h2 class="text-2xl font-bold text-center text-white mb-6">Welcome Back</h2>
 
+                <p class="text-gray-300 mb-6 text-center">Please enter your credentials to access the dashboard.</p>
+                <?php if (isset($_GET['success'])): ?>
+                    <div class="bg-green-500 bg-opacity-20 border border-green-500 border-opacity-50 text-green-200 p-4 mb-6 rounded-lg" role="alert">
+                        <div class="flex items-center">
+                            <i class="fas fa-check-circle mr-2"></i>
+                            <?= htmlspecialchars($_GET['success']) ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+                <?php if (isset($_GET['error'])): ?>
+                    <div class="bg-red-500 bg-opacity-20 border border-red-500 border-opacity-50 text-red-200 p-4 mb-6 rounded-lg error-shake" role="alert">
+                        <div class="flex items-center">
+                            <i class="fas fa-exclamation-triangle mr-2"></i>
+                            <?= htmlspecialchars($_GET['error']) ?>
+                        </div>
+                    </div>
+                <?php endif; ?>
+
                 <?php if ($error): ?>
                     <div class="bg-red-500 bg-opacity-20 border border-red-500 border-opacity-50 text-red-200 p-4 mb-6 rounded-lg error-shake" role="alert">
                         <div class="flex items-center">

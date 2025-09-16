@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/config.php';
+require_once __DIR__ . '/autoloader.php';
 
 try {
     $db = new \WireGuardAdmin\Database();
@@ -9,7 +10,7 @@ try {
     $auth->logout();
     
     // Redirect to login page with success message
-    header('Location: login.php?message=logged_out');
+    header('Location: login.php?success=Logged out successfully');
     exit;
     
 } catch (Exception $e) {
@@ -18,6 +19,6 @@ try {
     session_unset();
     session_destroy();
     
-    header('Location: login.php');
+    header('Location: login.php?error=An error occurred during logout');
     exit;
 }

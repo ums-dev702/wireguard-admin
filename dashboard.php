@@ -1,26 +1,5 @@
 <?php require_once __DIR__ . '/includes/header.php'; ?>
-<!-- Main Content -->
-<div class="main-content ml-0 lg:ml-64 min-h-screen">
-    <!-- Top Bar -->
-    <div class="top-bar p-4">
-        <div class="flex items-center justify-between top-bar-content">
-            <div>
-                <h1 class="text-2xl font-bold text-white">Dashboard</h1>
-                <p class="text-gray-400">Welcome back, <?= htmlspecialchars($currentUser['username']) ?>!</p>
-            </div>
-            <div class="flex items-center space-x-4 status-indicator">
-                <div class="flex items-center">
-                    <div class="w-3 h-3 rounded-full <?= $isRunning ? 'bg-green-400 animate-pulse' : 'bg-red-400' ?> mr-2"></div>
-                    <span class="text-sm font-medium <?= $isRunning ? 'text-green-400' : 'text-red-400' ?>">
-                        WireGuard <?= $isRunning ? 'Running' : 'Stopped' ?>
-                    </span>
-                </div>
-                <button class="w-10 h-10 rounded-lg flex items-center justify-center bg-white bg-opacity-5 hover:bg-opacity-10 transition-all">
-                    <i class="fas fa-bell text-gray-400"></i>
-                </button>
-            </div>
-        </div>
-    </div>
+
 
     <!-- Dashboard Content -->
     <div class="p-4 lg:p-6">
@@ -202,5 +181,7 @@
             </div>
         </div>
     </div>
-</div>
+
+
+
 <?php require_once __DIR__ . '/includes/footer.php'; ?>

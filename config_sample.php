@@ -9,6 +9,9 @@ define('DB_NAME', 'wireguard_admin');
 define('DB_USER', 'root');
 define('DB_PASS', '');
 define('DB_PORT', 3306);
+
+define('WG_PUBLIC_KEY', 'YOUR_WG_PUBLIC_KEY_HERE');
+define('WG_PRIVATE_KEY', 'YOUR_WG_PRIVATE_KEY_HERE');
 define('WG_IFACE', 'wg0');
 define('SERVER_IP', 'wg-vpn.netxtreme.top');
 define('SERVER_PORT', '51820');

@@ -279,6 +279,19 @@ try {
                     <i class="fas fa-tachometer-alt mr-3 text-green-500"></i>
                     Dashboard
                 </a>
+                   <a href="create-interface.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
+                    <i class="fas fa-plus-circle mr-3 text-green-400"></i>
+                    Create WG Interface
+                </a>
+                <a href="peers-and-forwarding.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
+                    <i class="fas fa-user-friends mr-3 text-green-500"></i>
+                    Peers & Forwarding
+                </a>
+             
+                <a href="wg-status.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
+                    <i class="fas fa-server mr-3 text-blue-400"></i>
+                    WG Status
+                </a>
                 <a href="wg-peers.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-users mr-3 text-blue-400"></i>
                     VPN Peers
@@ -286,10 +299,6 @@ try {
                 <a href="port-forwarding.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-network-wired mr-3 text-purple-400"></i>
                     Port Forwarding
-                </a>
-                <a href="settings.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
-                    <i class="fas fa-cog mr-3 text-yellow-400"></i>
-                    Settings
                 </a>
                 <a href="logs.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-file-alt mr-3 text-red-400"></i>
@@ -312,6 +321,29 @@ try {
                     <i class="fas fa-sign-out-alt mr-3"></i>
                     Logout
                 </a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Main Content -->
+<div class="main-content ml-0 lg:ml-64 min-h-screen">
+    <!-- Top Bar -->
+    <div class="top-bar p-4">
+        <div class="flex items-center justify-between top-bar-content">
+            <div>
+                <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+                <p class="text-gray-400">Welcome back, <?= htmlspecialchars($currentUser['username']) ?>!</p>
+            </div>
+            <div class="flex items-center space-x-4 status-indicator">
+                <div class="flex items-center">
+                    <div class="w-3 h-3 rounded-full <?= $isRunning ? 'bg-green-400 animate-pulse' : 'bg-red-400' ?> mr-2"></div>
+                    <span class="text-sm font-medium <?= $isRunning ? 'text-green-400' : 'text-red-400' ?>">
+                        WireGuard <?= $isRunning ? 'Running' : 'Stopped' ?>
+                    </span>
+                </div>
+                <button class="w-10 h-10 rounded-lg flex items-center justify-center bg-white bg-opacity-5 hover:bg-opacity-10 transition-all">
+                    <i class="fas fa-bell text-gray-400"></i>
+                </button>
             </div>
         </div>
     </div>
