@@ -14,10 +14,8 @@ try {
     $auth->requireAuth('/login.php');
 
     $currentUser = $auth->getCurrentUser();
-
     // Update peer statistics
     $wg->updatePeerStats();
-
     // Get system information
     $wgStatus = $wg->getStatus();
     $isRunning = $wg->isRunning();

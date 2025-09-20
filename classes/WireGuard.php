@@ -22,6 +22,7 @@ class WireGuard {
         }
     }
 
+    
     public function isRunning() {
         $output = shell_exec("sudo wg show {$this->interfaceName} 2>/dev/null");
         return !empty($output);

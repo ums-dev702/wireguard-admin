@@ -25,7 +25,7 @@ $routes = [
     '/login'           => 'auth/login.php',
     '/logout'          => 'auth/logout.php',
     '/dashboard'       => 'dashboard.php',
-    '/createinterface' => 'create_interface.php',
+    '/create_interface' => 'create_interface.php',
     '/peers'           => 'peers-and-forwarding.php',
     '/port-forwarding' => 'port-forwarding.php',
     '/mikrotik'        => 'mikrotik.php',
@@ -57,6 +57,7 @@ if (isset($routes[$request])) {
     if (file_exists($filePath)) {
         require $filePath;
     } else {
+        echo "File not found: $filePath";
         http_response_code(404);
         include __DIR__ . '/includes/404.php';
     }
