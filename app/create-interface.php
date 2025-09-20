@@ -13,6 +13,7 @@ function ensure_interfaces_table()
   $db = get_db();
   $db->exec('CREATE TABLE IF NOT EXISTS interfaces (
     id INTEGER PRIMARY KEY AUTOINCREMENT,
+    iface_id TEXT UNIQUE,
     name TEXT NOT NULL,
     address TEXT,
     port INTEGER,
@@ -101,14 +102,17 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
           $error = "Interface configuration already exists.";
         } else {
           if (file_put_contents($conf_path, $conf) !== false) {
+
+            //genrate a rendom  inderface id previx IWG
+            $iface_id = "IWG" . rand(10000, 99999);
             // Bring up the interface
             $output = shell_exec("sudo wg-quick up $iface 2>&1");
             // Add to database
             try {
               ensure_interfaces_table();
               $db = get_db();
-              $stmt = $db->prepare('INSERT INTO interfaces (name, address, port) VALUES (?, ?, ?)');
-              $stmt->execute([$iface, $address, $listen_port]);
+              $stmt = $db->prepare('INSERT INTO interfaces (iface_id, name, address, port) VALUES (?, ?, ?, ?)');
+              $stmt->execute([$iface_id, $iface, $address, $listen_port]);
               $iface_id = $db->lastInsertId();
               $success = "WireGuard interface '$iface' (ID: $iface_id) created, started, and saved to database.";
             } catch (Exception $e) {

@@ -275,32 +275,24 @@ try {
 
             <!-- Navigation Menu -->
             <nav class="flex-1 p-4 space-y-1">
-                <a href="dashboard.php" class="nav-link active flex items-center p-3" onclick="closeMenuOnMobile()">
+                <a href="dashboard" class="nav-link active flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-tachometer-alt mr-3 text-green-500"></i>
                     Dashboard
                 </a>
-                   <a href="create-interface.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
+                   <a href="create_interface" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-plus-circle mr-3 text-green-400"></i>
                     Create WG Interface
                 </a>
-                <a href="peers-and-forwarding.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
+                <a href="peers-and-forwarding" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-user-friends mr-3 text-green-500"></i>
                     Peers & Forwarding
                 </a>
              
-                <a href="wg-status.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
+                <a href="wg-status" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-server mr-3 text-blue-400"></i>
                     WG Status
                 </a>
-                <a href="wg-peers.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
-                    <i class="fas fa-users mr-3 text-blue-400"></i>
-                    VPN Peers
-                </a>
-                <a href="port-forwarding.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
-                    <i class="fas fa-network-wired mr-3 text-purple-400"></i>
-                    Port Forwarding
-                </a>
-                <a href="logs.php" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
+                <a href="logs" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-file-alt mr-3 text-red-400"></i>
                     Audit Logs
                 </a>
@@ -317,7 +309,7 @@ try {
                         <p class="text-xs text-gray-400"><?= htmlspecialchars($currentUser['role']) ?></p>
                     </div>
                 </div>
-                <a href="logout.php" class="nav-link flex items-center p-2 text-red-400" onclick="closeMenuOnMobile()">
+                <a href="logout" class="nav-link flex items-center p-2 text-red-400" onclick="closeMenuOnMobile()">
                     <i class="fas fa-sign-out-alt mr-3"></i>
                     Logout
                 </a>

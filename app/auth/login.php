@@ -1,6 +1,4 @@
 <?php
-require_once __DIR__ . '/config.php';
-require_once __DIR__ . '/autoloader.php';
 // Check if installation is complete
 $db = new \WireGuardAdmin\Database();
 $auth = new \WireGuardAdmin\Auth($db, SESSION_TIMEOUT);
@@ -9,7 +7,7 @@ $success = '';
 
 // Redirect if already authenticated
 if ($auth->isAuthenticated()) {
-    header('Location: dashboard.php');
+    header('Location: dashboard');
     exit;
 }
 
@@ -30,7 +28,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
             unset($_SESSION['login_attempts']);
             unset($_SESSION['last_attempt']);
 
-            header('Location: dashboard.php');
+            header('Location: dashboard');
             exit;
         } else {
             $_SESSION['login_attempts'] = $attempts + 1;

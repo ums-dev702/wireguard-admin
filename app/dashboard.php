@@ -1,4 +1,4 @@
-<?php require_once __DIR__ . '/includes/header.php'; ?>
+<?php require_once __DIR__ . '/../includes/header.php'; ?>
 
 
     <!-- Dashboard Content -->
@@ -70,68 +70,18 @@
 
         <!-- Recent Peers and Quick Actions -->
         <div class="grid grid-cols-1 lg:grid-cols-3 gap-4 lg:gap-5 peer-grid">
-            <!-- Recent Peers -->
+            <!-- Custom Section -->
             <div class="lg:col-span-2 glass-card p-4 lg:p-5">
                 <div class="flex items-center justify-between mb-4 lg:mb-6">
                     <h2 class="text-lg font-bold text-white">
-                        <i class="fas fa-users text-blue-400 mr-2"></i>
-                        Recent Peers
+                        <i class="fas fa-cogs text-blue-400 mr-2"></i>
+                        Custom Section
                     </h2>
-                    <a href="wg-peers.php" class="text-sm text-blue-400 hover:text-blue-300 font-medium flex items-center">
-                        View All <i class="fas fa-arrow-right ml-1 text-xs"></i>
-                    </a>
                 </div>
-
-                <?php if (empty($peers)): ?>
-                    <div class="text-center py-6 lg:py-8">
-                        <i class="fas fa-users text-gray-600 text-3xl lg:text-4xl mb-3 lg:mb-4"></i>
-                        <p class="text-gray-400 mb-3 lg:mb-4">No VPN peers configured yet</p>
-                        <a href="wg-peers.php" class="floating-btn inline-flex items-center px-4 py-2 rounded-lg text-white text-sm lg:text-base">
-                            <i class="fas fa-plus mr-2"></i>
-                            Add Your First Peer
-                        </a>
-                    </div>
-                <?php else: ?>
-                    <div class="table-responsive">
-                        <table class="w-full">
-                            <thead>
-                                <tr class="text-left text-gray-400 text-sm">
-                                    <th class="pb-3 px-2 lg:px-4 font-medium">Name</th>
-                                    <th class="pb-3 px-2 lg:px-4 font-medium">IP Address</th>
-                                    <th class="pb-3 px-2 lg:px-4 font-medium">Last Seen</th>
-                                    <th class="pb-3 px-2 lg:px-4 font-medium">Status</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-                                <?php foreach (array_slice($peers, 0, 5) as $peer): ?>
-                                    <tr class="table-row">
-                                        <td class="py-3 px-2 lg:px-4">
-                                            <div class="flex items-center">
-                                                <div class="w-8 h-8 bg-green-500 bg-opacity-10 rounded-full flex items-center justify-center mr-3">
-                                                    <i class="fas fa-laptop text-green-400 text-sm"></i>
-                                                </div>
-                                                <span class="font-medium text-white text-sm lg:text-base"><?= htmlspecialchars($peer['name']) ?></span>
-                                            </div>
-                                        </td>
-                                        <td class="py-3 px-2 lg:px-4 text-gray-400 text-sm"><?= htmlspecialchars($peer['allowed_ips']) ?></td>
-                                        <td class="py-3 px-2 lg:px-4 text-gray-400 text-sm">
-                                            <?= $peer['last_handshake'] ? date('M j, H:i', strtotime($peer['last_handshake'])) : 'Never' ?>
-                                        </td>
-                                        <td class="py-3 px-2 lg:px-4">
-                                            <?php
-                                            $isOnline = $peer['last_handshake'] && (time() - strtotime($peer['last_handshake'])) < 300;
-                                            ?>
-                                            <span class="status-badge <?= $isOnline ? 'bg-green-900 bg-opacity-20 text-green-400' : 'bg-gray-700 text-gray-400' ?>">
-                                                <div class="w-2 h-2 rounded-full <?= $isOnline ? 'bg-green-400' : 'bg-gray-400' ?> mr-1"></div>
-                                                <?= $isOnline ? 'Online' : 'Offline' ?>
-                                            </span>
-                                        </td>
-                                    </tr>
-                                <?php endforeach; ?>
-                            </tbody>
-                        </table>
-                    </div>
-                <?php endif; ?>
+                <div class="text-center py-6 lg:py-8">
+                    <i class="fas fa-tools text-gray-600 text-3xl lg:text-4xl mb-3 lg:mb-4"></i>
+                    <p class="text-gray-400 mb-3 lg:mb-4">This is a placeholder for your new dashboard content.</p>
+                </div>
             </div>
 
             <!-- Quick Actions -->
@@ -148,8 +98,8 @@
                                 <i class="fas fa-plus text-green-400"></i>
                             </div>
                             <div>
-                                <h3 class="font-medium text-white text-sm lg:text-base">Add New Peer</h3>
-                                <p class="text-xs lg:text-sm text-gray-400">Create a new VPN connection</p>
+                                <h3 class="font-medium text-white text-sm lg:text-base">Create an Interface</h3>
+                                <p class="text-xs lg:text-sm text-gray-400">Create a new WG interface</p>
                             </div>
                         </div>
                     </a>
@@ -160,19 +110,19 @@
                                 <i class="fas fa-network-wired text-blue-400"></i>
                             </div>
                             <div>
-                                <h3 class="font-medium text-white text-sm lg:text-base">Port Forwarding</h3>
-                                <p class="text-xs lg:text-sm text-gray-400">Manage network routes</p>
+                                <h3 class="font-medium text-white text-sm lg:text-base">Add a Peer</h3>
+                                <p class="text-xs lg:text-sm text-gray-400">Manage WireGuard peers</p>
                             </div>
                         </div>
                     </a>
 
-                    <button onclick="refreshStats()" class="block w-full bg-white bg-opacity-5 hover:bg-opacity-10 border border-white border-opacity-5 rounded-xl p-3 lg:p-4 transition-all text-left">
+                    <button onclick="refresh()" class="block w-full bg-white bg-opacity-5 hover:bg-opacity-10 border border-white border-opacity-5 rounded-xl p-3 lg:p-4 transition-all text-left">
                         <div class="flex items-center">
                             <div class="w-8 h-8 lg:w-10 lg:h-10 bg-purple-500 bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
                                 <i class="fas fa-sync text-purple-400"></i>
                             </div>
                             <div>
-                                <h3 class="font-medium text-white text-sm lg:text-base">Refresh Stats</h3>
+                                <h3 class="font-medium text-white text-sm lg:text-base">Refresh Dashboard</h3>
                                 <p class="text-xs lg:text-sm text-gray-400">Update system information</p>
                             </div>
                         </div>
@@ -183,5 +133,11 @@
     </div>
 
 
+<script>
+    // Function to refresh system stats via AJAX
+    function refresh() {
+       
+    }
 
-<?php require_once __DIR__ . '/includes/footer.php'; ?>
+
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>
