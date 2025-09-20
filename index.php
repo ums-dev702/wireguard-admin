@@ -57,7 +57,6 @@ if (isset($routes[$request])) {
     if (file_exists($filePath)) {
         require $filePath;
     } else {
-        echo "File not found: $filePath";
         http_response_code(404);
         include __DIR__ . '/includes/404.php';
     }

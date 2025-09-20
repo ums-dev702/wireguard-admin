@@ -1,6 +1,20 @@
 <?php
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../autoloader.php';
+// Database connection helper
+function get_db()
+{
+    try {
+        // Create PDO instance
+        $db = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";port=" . DB_PORT, DB_USER, DB_PASS);
+        // Set PDO error mode
+        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        return $db;
+    } catch (PDOException $e) {
+        die("Database connection failed: " . $e->getMessage());
+    }
+}
+
 // Ensure $port_rules is always an array before any usage
 if (!isset($port_rules) || !is_array($port_rules)) {
     $port_rules = [];
@@ -36,7 +50,157 @@ try {
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Font Awesome for icons -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
+
     <style>
+        /* Modal overlay */
+        .modal {
+            display: none;
+            /* hidden by default */
+            position: fixed;
+            z-index: 1000;
+            left: 0;
+            top: 0;
+            width: 100vw;
+            height: 100vh;
+            background: rgba(0, 0, 0, 0.6);
+            display: flex;
+            /* align-items: center;
+            justify-content: center; */
+            animation: fadeIn 0.3s ease;
+        }
+
+        /* Modal content */
+        .modal-content {
+            background: #222;
+            border-radius: 1rem;
+            padding: 2rem;
+            width: 90%;
+            max-width: 800px;
+            color: #fff;
+            position: relative;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.8);
+            animation: slideIn 0.3s ease;
+        }
+
+        /* Title */
+        .modal-title {
+            margin-bottom: 1rem;
+            font-size: 1.3rem;
+            color: #10b981;
+        }
+
+        /* Close button */
+        .close-btn {
+            position: absolute;
+            top: 1rem;
+            right: 1rem;
+            background: none;
+            border: none;
+            color: #fff;
+            font-size: 1.8rem;
+            cursor: pointer;
+            transition: color 0.2s;
+        }
+
+        .close-btn:hover {
+            color: #f87171;
+        }
+
+        /* Labels & inputs */
+        .form-label {
+            display: block;
+            margin-top: 1rem;
+            margin-bottom: 0.4rem;
+            font-weight: 500;
+        }
+
+        .form-input {
+            width: 100%;
+            padding: 0.6rem 0.8rem;
+            border-radius: 0.5rem;
+            border: 1px solid #444;
+            background: #111;
+            color: #fff;
+            outline: none;
+            transition: border 0.2s, box-shadow 0.2s;
+        }
+
+        .form-input:focus {
+            border-color: #10b981;
+            box-shadow: 0 0 0 2px rgba(16, 185, 129, 0.3);
+        }
+
+        /* Input group */
+        .input-wrapper {
+            position: relative;
+            display: flex;
+            align-items: center;
+        }
+
+        .input-wrapper input {
+            flex: 1;
+            padding-right: 2.5rem;
+        }
+
+        .icon-btn {
+            position: absolute;
+            right: 0.5rem;
+            background: none;
+            border: none;
+            cursor: pointer;
+            color: #10b981;
+            font-size: 1.1rem;
+        }
+
+        /* Button */
+        .btn-submit {
+            margin-top: 1.5rem;
+            width: 100%;
+            padding: 0.75rem;
+            border: none;
+            border-radius: 0.6rem;
+            background: #10b981;
+            color: #fff;
+            font-size: 1rem;
+            font-weight: bold;
+            cursor: pointer;
+            transition: background 0.2s, transform 0.1s;
+        }
+
+        .btn-submit:hover {
+            background: #0e9e73;
+        }
+
+        .btn-submit:active {
+            transform: scale(0.97);
+        }
+
+        /* Animations */
+        @keyframes fadeIn {
+            from {
+                background: rgba(0, 0, 0, 0);
+            }
+
+            to {
+                background: rgba(0, 0, 0, 0.6);
+            }
+        }
+
+        @keyframes slideIn {
+            from {
+                transform: translateY(-30px);
+                opacity: 0;
+            }
+
+            to {
+                transform: translateY(0);
+                opacity: 1;
+            }
+        }
+
         :root {
             --primary-gradient: linear-gradient(135deg, #000000 0%, #1a365d 100%);
             --card-bg: rgba(255, 255, 255, 0.07);
@@ -277,7 +441,7 @@ try {
                     <i class="fas fa-tachometer-alt mr-3 text-green-500"></i>
                     Dashboard
                 </a>
-                   <a href="create_interface" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
+                <a href="create_interface" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-plus-circle mr-3 text-green-400"></i>
                     Create WG Interface
                 </a>
@@ -285,7 +449,7 @@ try {
                     <i class="fas fa-user-friends mr-3 text-green-500"></i>
                     Peers & Forwarding
                 </a>
-             
+
                 <a href="wg-status" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-server mr-3 text-blue-400"></i>
                     WG Status
@@ -316,24 +480,24 @@ try {
     </div>
 
     <!-- Main Content -->
-<div class="main-content ml-0 lg:ml-64 min-h-screen">
-    <!-- Top Bar -->
-    <div class="top-bar p-4">
-        <div class="flex items-center justify-between top-bar-content">
-            <div>
-                <h1 class="text-2xl font-bold text-white">Dashboard</h1>
-                <p class="text-gray-400">Welcome back, <?= htmlspecialchars($currentUser['username']) ?>!</p>
-            </div>
-            <div class="flex items-center space-x-4 status-indicator">
-                <div class="flex items-center">
-                    <div class="w-3 h-3 rounded-full <?= $isRunning ? 'bg-green-400 animate-pulse' : 'bg-red-400' ?> mr-2"></div>
-                    <span class="text-sm font-medium <?= $isRunning ? 'text-green-400' : 'text-red-400' ?>">
-                        WireGuard <?= $isRunning ? 'Running' : 'Stopped' ?>
-                    </span>
+    <div class="main-content ml-0 lg:ml-64 min-h-screen">
+        <!-- Top Bar -->
+        <div class="top-bar p-4">
+            <div class="flex items-center justify-between top-bar-content">
+                <div>
+                    <h1 class="text-2xl font-bold text-white">Dashboard</h1>
+                    <p class="text-gray-400">Welcome back, <?= htmlspecialchars($currentUser['username']) ?>!</p>
                 </div>
-                <button class="w-10 h-10 rounded-lg flex items-center justify-center bg-white bg-opacity-5 hover:bg-opacity-10 transition-all">
-                    <i class="fas fa-bell text-gray-400"></i>
-                </button>
+                <div class="flex items-center space-x-4 status-indicator">
+                    <div class="flex items-center">
+                        <div class="w-3 h-3 rounded-full <?= $isRunning ? 'bg-green-400 animate-pulse' : 'bg-red-400' ?> mr-2"></div>
+                        <span class="text-sm font-medium <?= $isRunning ? 'text-green-400' : 'text-red-400' ?>">
+                            WireGuard <?= $isRunning ? 'Running' : 'Stopped' ?>
+                        </span>
+                    </div>
+                    <button class="w-10 h-10 rounded-lg flex items-center justify-center bg-white bg-opacity-5 hover:bg-opacity-10 transition-all">
+                        <i class="fas fa-bell text-gray-400"></i>
+                    </button>
+                </div>
             </div>
         </div>
-    </div>
