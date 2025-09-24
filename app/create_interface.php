@@ -5,6 +5,8 @@ if (!is_authenticated()) {
   header('Location: login');
   exit;
 }
+
+// Your existing PHP code remains the same...
 // Ensure interfaces table exists
 function ensure_interfaces_table()
 {
@@ -28,24 +30,29 @@ function ensure_interfaces_table()
   }
 }
 
-
 $success = '';
 $error = '';
+
 
 // Helper: Find a free UDP port (Linux)
 function find_free_port($start = 20000, $end = 60000)
 {
-  for ($port = $start; $port <= $end; $port++) {
-    $output = shell_exec("ss -lun | awk '{print \$5}' | grep -w ':$port' | wc -l");
+    for ($port = $start; $port <= $end; $port++) {
+        // First check with ss command
+        $output = shell_exec("ss -lun | awk '{print \$5}' | grep -w ':$port' | wc -l");
 
-    // Handle null safely
-    $count = $output !== null ? trim($output) : '0';
+        $count = $output !== null ? trim($output) : '0';
 
-    if ($count === '0') {
-      return $port;
+        if ($count === '0') {
+            // Double-check by trying to bind the port
+            $sock = @stream_socket_server("udp://0.0.0.0:$port", $errno, $errstr, STREAM_SERVER_BIND);
+            if ($sock) {
+                fclose($sock); // release immediately
+                return $port;  // port is free
+            }
+        }
     }
-  }
-  return false;
+    return false; // no free port found
 }
 
 // Initialize variables for all cases
@@ -64,7 +71,6 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
   $private_key = trim((string)($_POST['private_key'] ?? $private_key));
   $listen_port = trim((string)($_POST['listen_port'] ?? $listen_port));
   $address = trim((string)($_POST['address'] ?? $address));
-
 
   // Handle address/port generation buttons
   if (isset($_POST['generate_address'])) {
@@ -104,6 +110,10 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         } else {
           if (file_put_contents($conf_path, $conf) !== false) {
 
+            // all port on ufw
+            shell_exec("sudo ufw allow $listen_port/udp");
+
+
             //genrate a rendom  inderface id previx IWG
             $iface_id = "IWG" . rand(10000, 99999);
             // Bring up the interface
@@ -131,14 +141,27 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 }
 ?>
 <style>
+  :root {
+    --primary: #10b981;
+    --primary-dark: #059669;
+    --danger: #dc2626;
+    --dark-bg: #0f172a;
+    --card-bg: rgba(255, 255, 255, 0.05);
+    --text-light: #f8fafc;
+    --text-muted: #94a3b8;
+    --border-radius: 0.75rem;
+    --transition: all 0.3s ease;
+  }
+
   .gradient-bg {
     background: linear-gradient(135deg, #000000 0%, #1a365d 100%);
   }
 
   .glass-effect {
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(255, 255, 255, 0.05);
     backdrop-filter: blur(10px);
-    border: 1px solid rgba(255, 255, 255, 0.2);
+    border: 1px solid rgba(255, 255, 255, 0.1);
+    border-radius: var(--border-radius);
   }
 
   .fade-in {
@@ -150,210 +173,481 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
       opacity: 0;
       transform: translateY(30px);
     }
-
     to {
       opacity: 1;
       transform: translateY(0);
     }
   }
 
-  .form-label {
-    color: #fff;
+  .page-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 2rem;
+    flex-wrap: wrap;
+    gap: 1rem;
+  }
+
+  .page-title {
+    color: var(--text-light);
+    font-size: 1.75rem;
+    font-weight: 700;
+    margin: 0;
+  }
+
+  .btn-primary {
+    background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 0.75rem 1.5rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: var(--transition);
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .btn-primary:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 4px 12px rgba(16, 185, 129, 0.3);
+  }
+
+  .btn-secondary {
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-light);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    border-radius: var(--border-radius);
+    padding: 0.5rem 1rem;
     font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.15);
+  }
+
+  .btn-danger {
+    background: var(--danger);
+    color: white;
+    border: none;
+    border-radius: var(--border-radius);
+    padding: 0.5rem 1rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .btn-danger:hover {
+    background: #b91c1c;
+  }
+
+  .form-group {
+    margin-bottom: 1.5rem;
+  }
+
+  .form-label {
+    display: block;
+    color: var(--text-light);
+    font-weight: 500;
+    margin-bottom: 0.5rem;
   }
 
   .form-input {
     width: 100%;
     padding: 0.75rem 1rem;
-    border-radius: 0.75rem;
-    border: 1px solid #ccc;
-    background: rgba(255, 255, 255, 0.15);
-    color: #fff;
-    margin-bottom: 1rem;
+    border-radius: var(--border-radius);
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    background: rgba(255, 255, 255, 0.1);
+    color: var(--text-light);
+    transition: var(--transition);
   }
 
   .form-input:focus {
     outline: none;
-    border-color: #10b981;
-    background: rgba(255, 255, 255, 0.25);
+    border-color: var(--primary);
+    background: rgba(255, 255, 255, 0.15);
+    box-shadow: 0 0 0 3px rgba(16, 185, 129, 0.2);
   }
 
-  .btn-submit {
-    background: linear-gradient(135deg, #10b981 0%, #059669 100%);
-    color: #fff;
+  .input-wrapper {
+    position: relative;
+  }
+
+  .icon-btn {
+    position: absolute;
+    right: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    background: transparent;
     border: none;
-    border-radius: 0.75rem;
-    padding: 0.75rem 1.5rem;
-    font-size: 1rem;
-    font-weight: 600;
+    color: var(--text-muted);
     cursor: pointer;
-    transition: background 0.2s, transform 0.2s;
+    padding: 0.25rem;
+    border-radius: 0.25rem;
+    transition: var(--transition);
   }
 
-  .btn-submit:hover {
-    background: linear-gradient(135deg, #059669 0%, #10b981 100%);
-    transform: translateY(-2px);
+  .icon-btn:hover {
+    color: var(--text-light);
+    background: rgba(255, 255, 255, 0.1);
   }
 
   .alert {
     padding: 1rem;
-    border-radius: 0.75rem;
-    margin-bottom: 1rem;
+    border-radius: var(--border-radius);
+    margin-bottom: 1.5rem;
+    font-weight: 500;
   }
 
   .alert-success {
-    background: #d1fae5;
-    color: #065f46;
+    background: rgba(16, 185, 129, 0.15);
+    color: #10b981;
+    border-left: 4px solid #10b981;
   }
 
   .alert-error {
-    background: #fee2e2;
-    color: #991b1b;
+    background: rgba(220, 38, 38, 0.15);
+    color: #dc2626;
+    border-left: 4px solid #dc2626;
   }
 
-  @media (max-width: 600px) {
-    .glass-effect {
+  .modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: rgba(0, 0, 0, 0.7);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 1rem;
+  }
+
+  .modal-content {
+    width: 100%;
+    max-width: 500px;
+    padding: 2rem;
+    position: relative;
+    animation: modalFadeIn 0.3s ease-out;
+  }
+
+  @keyframes modalFadeIn {
+    from {
+      opacity: 0;
+      transform: scale(0.9);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1);
+    }
+  }
+
+  .close-btn {
+    position: absolute;
+    top: 1rem;
+    right: 1rem;
+    background: transparent;
+    border: none;
+    color: var(--text-muted);
+    font-size: 1.5rem;
+    cursor: pointer;
+    transition: var(--transition);
+  }
+
+  .close-btn:hover {
+    color: var(--text-light);
+  }
+
+  .modal-title {
+    color: var(--text-light);
+    font-size: 1.5rem;
+    font-weight: 600;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+  }
+
+  .table-container {
+    overflow-x: auto;
+    border-radius: var(--border-radius);
+    margin-top: 2rem;
+  }
+
+  .data-table {
+    width: 100%;
+    border-collapse: collapse;
+    background: var(--card-bg);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+  }
+
+  .data-table th {
+    background: rgba(16, 185, 129, 0.2);
+    color: var(--text-light);
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+  }
+
+  .data-table td {
+    padding: 1rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    color: var(--text-light);
+  }
+
+  .data-table tr:last-child td {
+    border-bottom: none;
+  }
+
+  .data-table tr:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  .action-buttons {
+    display: flex;
+    gap: 0.5rem;
+  }
+
+  .empty-state {
+    text-align: center;
+    padding: 3rem 1rem;
+    color: var(--text-muted);
+  }
+
+  .empty-state i {
+    font-size: 3rem;
+    margin-bottom: 1rem;
+    opacity: 0.5;
+  }
+
+  .text-warning {
+    color: #f59e0b;
+  }
+
+  .text-muted {
+    color: var(--text-muted);
+    font-size: 0.875rem;
+  }
+
+  @media (max-width: 768px) {
+    .page-header {
+      flex-direction: column;
+      align-items: flex-start;
+    }
+
+    .page-title {
+      font-size: 1.5rem;
+    }
+
+    .modal-content {
+      padding: 1.5rem;
+    }
+
+    .data-table {
+      font-size: 0.875rem;
+    }
+
+    .data-table th,
+    .data-table td {
+      padding: 0.75rem 0.5rem;
+    }
+
+    .action-buttons {
+      flex-direction: column;
+    }
+
+    .btn-primary, .btn-secondary, .btn-danger {
+      width: 100%;
+      justify-content: center;
+    }
+  }
+
+  @media (max-width: 480px) {
+    .page-title {
+      font-size: 1.25rem;
+    }
+
+    .modal-content {
       padding: 1rem;
+    }
+
+    .data-table {
+      font-size: 0.8rem;
     }
   }
 </style>
 
 <div class="p-4 lg:p-6">
-  <div class="glass-effect rounded-2xl p-8 backdrop-blur-lg">
-    <h1 class="text-2xl font-bold text-white mb-8"><i class="fas fa-plus-circle mr-2"></i>WireGuard Interfaces</h1>
+  <div class="glass-effect p-6 lg:p-8">
+    <div class="page-header">
+      <h1 class="page-title"><i class="fas fa-network-wired mr-2"></i>WireGuard Interfaces</h1>
+      <button onclick="document.getElementById('createModal').style.display='flex'" class="btn-primary">
+        <i class="fas fa-plus"></i> New Interface
+      </button>
+    </div>
+
     <?php if ($success): ?>
       <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
     <?php elseif ($error): ?>
       <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
     <?php endif; ?>
-    <div class="text-right mb-8">
-      <!-- Example button to open modal -->
-      <button onclick="document.getElementById('createModal').style.display='flex'"
-        style="margin:2rem;padding:0.7rem 1.2rem;border:none;border-radius:0.5rem;background:#10b981;color:#fff;cursor:pointer;">
-        + New Interface
-      </button>
-    </div>
 
-
-    <!-- Modal for create/edit -->
-    <div id="createModal" class="modal" style="display:none;">
-      <div class="modal-content glass-effect fade-in">
+    <!-- Modal for create interface -->
+    <div id="createModal" class="modal">
+      <div class="modal-content glass-effect">
         <button class="close-btn" onclick="document.getElementById('createModal').style.display='none'">&times;</button>
-        <h2 class="modal-title"><i class="fas fa-network-wired"></i> Create Interface</h2>
+        <h2 class="modal-title"><i class="fas fa-plus-circle"></i> Create Interface</h2>
         <form method="POST" autocomplete="off">
-
-          <!-- Interface -->
-          <label class="form-label" for="iface">Interface Name
-            <small class="text-warning">Max 8 characters</small>
-          </label>
-          <input class="form-input" type="text" id="iface" name="iface" required
-            placeholder="mywg" maxlength="8"
-            oninput="if(this.value.length>8)this.value=this.value.slice(0,8);"
-            value="<?php echo htmlspecialchars($iface ?? '', ENT_QUOTES); ?>">
-
-          <!-- Private Key -->
-          <label class="form-label" for="private_key">Private Key</label>
-          <div class="input-wrapper">
-            <input class="form-input" type="password" id="private_key" name="private_key"
-              value="<?php echo WG_PRIVATE_KEY; ?>" readonly>
-            <button type="button" id="togglePrivateKey" class="icon-btn">
-              <i id="privateKeyIcon" class="fas fa-eye"></i>
-            </button>
+          <div class="form-group">
+            <label class="form-label" for="iface">
+              Interface Name <span class="text-warning">(Max 8 characters)</span>
+            </label>
+            <input class="form-input" type="text" id="iface" name="iface" required
+              placeholder="e.g., wg0" maxlength="8"
+              oninput="if(this.value.length>8)this.value=this.value.slice(0,8);"
+              value="<?php echo htmlspecialchars($iface ?? '', ENT_QUOTES); ?>">
           </div>
 
-          <!-- Address -->
-          <label class="form-label" for="address">Address (e.g., 10.0.0.1/24)</label>
-          <input class="form-input" type="text" id="address" name="address" required
-            placeholder="10.0.0.1/24"
-            value="<?php echo htmlspecialchars($address ?? '', ENT_QUOTES); ?>">
+          <div class="form-group">
+            <label class="form-label" for="private_key">Private Key</label>
+            <div class="input-wrapper">
+              <input class="form-input" type="password" id="private_key" name="private_key"
+                value="<?php echo htmlspecialchars($private_key ?? '', ENT_QUOTES); ?>" readonly>
+              <button type="button" id="togglePrivateKey" class="icon-btn">
+                <i id="privateKeyIcon" class="fas fa-eye"></i>
+              </button>
+            </div>
+            <p class="text-muted">Pre-configured private key from your environment</p>
+          </div>
 
-          <!-- Listen Port -->
-          <label class="form-label" for="listen_port">Listen Port (default: 51820)</label>
-          <input class="form-input" type="number" id="listen_port" name="listen_port"
-            placeholder="51820"
-            value="<?php echo htmlspecialchars($listen_port ?? '', ENT_QUOTES); ?>">
+          <div class="form-group">
+            <label class="form-label" for="address">Address</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <input class="form-input" type="text" id="address" name="address" required
+                placeholder="e.g., 10.0.0.1/24"
+                value="<?php echo htmlspecialchars($address ?? '', ENT_QUOTES); ?>" style="flex: 1;">
+            </div>
+          </div>
 
-          <!-- Submit -->
-          <button class="btn-submit" type="submit" name="create_interface">
-            <i class="fas fa-plus"></i> Create Interface
-          </button>
+          <div class="form-group">
+            <label class="form-label" for="listen_port">Listen Port</label>
+            <div style="display: flex; gap: 0.5rem;">
+              <input class="form-input" type="number" id="listen_port" name="listen_port"
+                placeholder="51820"
+                value="<?php echo htmlspecialchars($listen_port ?? '', ENT_QUOTES); ?>" style="flex: 1;">
+            </div>
+          </div>
+
+          <div class="form-group" style="margin-top: 2rem;">
+            <button class="btn-primary" type="submit" name="create_interface" style="width: 100%;">
+              <i class="fas fa-plus"></i> Create Interface
+            </button>
+          </div>
         </form>
       </div>
     </div>
 
- 
-
-
-
-
-
-
-
     <!-- Table of interfaces -->
-    <div class="mt-10">
-      <h2 class="text-xl font-bold text-white mb-4">All Interfaces</h2>
-      <table style="width:100%;background:rgba(0,0,0,0.3);color:#fff;border-radius:1rem;overflow:hidden;">
-        <thead>
-          <tr style="background:rgba(16,185,129,0.2);">
-            <th style="padding:0.75rem;">ID</th>
-            <th style="padding:0.75rem;">Name</th>
-            <th style="padding:0.75rem;">Address</th>
-            <th style="padding:0.75rem;">Port</th>
-            <th style="padding:0.75rem;">Actions</th>
-          </tr>
-        </thead>
-        <tbody>
-          <?php
-          try {
-            ensure_interfaces_table();
-            $db = get_db();
-            $rows = $db->query('SELECT * FROM interfaces ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
-            foreach ($rows as $row): ?>
-              <tr style="border-bottom:1px solid rgba(255,255,255,0.1);">
-                <td style="padding:0.5rem;">#<?= htmlspecialchars($row['id']) ?></td>
-                <td style="padding:0.5rem;"><?= htmlspecialchars($row['name']) ?></td>
-                <td style="padding:0.5rem;"><?= htmlspecialchars($row['address']) ?></td>
-                <td style="padding:0.5rem;"><?= htmlspecialchars($row['port']) ?></td>
-                <td style="padding:0.5rem;">
-                  <button class="btn-submit" style="padding:0.25rem 0.75rem;font-size:0.9rem;" onclick="alert('Edit modal coming soon')"><i class="fas fa-edit"></i></button>
-                  <form method="POST" style="display:inline;" onsubmit="return confirm('Delete this interface?');">
-                    <input type="hidden" name="delete_id" value="<?= htmlspecialchars($row['id']) ?>">
-                    <button class="btn-submit" style="padding:0.25rem 0.75rem;font-size:0.9rem;background:#dc2626;" type="submit"><i class="fas fa-trash"></i></button>
-                  </form>
-                </td>
+    <div class="table-container">
+      <h2 style="color: var(--text-light); font-size: 1.25rem; margin-bottom: 1rem;">All Interfaces</h2>
+      
+      <?php
+      try {
+        ensure_interfaces_table();
+        $db = get_db();
+        $rows = $db->query('SELECT * FROM interfaces ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
+        
+        if (count($rows) > 0): ?>
+          <table class="data-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Name</th>
+                <th>Address</th>
+                <th>Port</th>
+                <th>Created</th>
+                <th>Actions</th>
               </tr>
-          <?php endforeach;
-          } catch (Exception $e) {
-            echo '<tr><td colspan="5">Error loading interfaces: ' . htmlspecialchars($e->getMessage()) . '</td></tr>';
-          }
-          ?>
-        </tbody>
-      </table>
+            </thead>
+            <tbody>
+              <?php foreach ($rows as $row): ?>
+                <tr>
+                  <td>#<?= htmlspecialchars($row['id']) ?></td>
+                  <td><?= htmlspecialchars($row['name']) ?></td>
+                  <td><?= htmlspecialchars($row['address']) ?></td>
+                  <td><?= htmlspecialchars($row['port']) ?></td>
+                  <td><?= date('M j, Y', strtotime($row['created_at'])) ?></td>
+                  <td>
+                    <div class="action-buttons">
+                      <button class="btn-secondary" onclick="alert('Edit functionality coming soon')">
+                        <i class="fas fa-edit"></i> Edit
+                      </button>
+                      <form method="POST" onsubmit="return confirm('Are you sure you want to delete this interface?');" style="display: inline;">
+                        <input type="hidden" name="delete_id" value="<?= htmlspecialchars($row['id']) ?>">
+                        <button class="btn-danger" type="submit">
+                          <i class="fas fa-trash"></i> Delete
+                        </button>
+                      </form>
+                    </div>
+                  </td>
+                </tr>
+              <?php endforeach; ?>
+            </tbody>
+          </table>
+        <?php else: ?>
+          <div class="empty-state glass-effect">
+            <i class="fas fa-network-wired"></i>
+            <h3 style="color: var(--text-light); margin-bottom: 0.5rem;">No Interfaces Found</h3>
+            <p class="text-muted">Get started by creating your first WireGuard interface.</p>
+            <button onclick="document.getElementById('createModal').style.display='flex'" class="btn-primary" style="margin-top: 1rem;">
+              <i class="fas fa-plus"></i> Create Interface
+            </button>
+          </div>
+        <?php endif;
+      } catch (Exception $e) {
+        echo '<div class="alert alert-error">Error loading interfaces: ' . htmlspecialchars($e->getMessage()) . '</div>';
+      }
+      ?>
     </div>
   </div>
 </div>
 
-    <script>
-      // Close modal on background click
-      document.getElementById('createModal').onclick = function(e) {
-        if (e.target === this) this.style.display = 'none';
-      };
+<script>
+  // Close modal on background click
+  document.getElementById('createModal').onclick = function(e) {
+    if (e.target === this) this.style.display = 'none';
+  };
 
-      // Toggle private key visibility
-      const privateKeyInput = document.getElementById('private_key');
-      const toggleBtn = document.getElementById('togglePrivateKey');
-      const icon = document.getElementById('privateKeyIcon');
-      if (privateKeyInput && toggleBtn && icon) {
-        toggleBtn.addEventListener('click', function(e) {
-          e.preventDefault();
-          if (privateKeyInput.type === 'password') {
-            privateKeyInput.type = 'text';
-            icon.classList.replace('fa-eye', 'fa-eye-slash');
-          } else {
-            privateKeyInput.type = 'password';
-            icon.classList.replace('fa-eye-slash', 'fa-eye');
-          }
-        });
+  // Toggle private key visibility
+  const privateKeyInput = document.getElementById('private_key');
+  const toggleBtn = document.getElementById('togglePrivateKey');
+  const icon = document.getElementById('privateKeyIcon');
+  
+  if (privateKeyInput && toggleBtn && icon) {
+    toggleBtn.addEventListener('click', function(e) {
+      e.preventDefault();
+      if (privateKeyInput.type === 'password') {
+        privateKeyInput.type = 'text';
+        icon.classList.replace('fa-eye', 'fa-eye-slash');
+      } else {
+        privateKeyInput.type = 'password';
+        icon.classList.replace('fa-eye-slash', 'fa-eye');
       }
-    </script>
+    });
+  }
+
+  // Close modal with Escape key
+  document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+      document.getElementById('createModal').style.display = 'none';
+    }
+  });
+</script>
+
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>

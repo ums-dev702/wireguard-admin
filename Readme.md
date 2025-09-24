@@ -82,6 +82,9 @@ sudo visudo -f /etc/sudoers.d/www-data
 ```
 
 Add to sudoers file:
+
+
+
 ```
 www-data ALL=(root) NOPASSWD: /usr/bin/wg, /usr/bin/wg-quick, /usr/sbin/iptables, /bin/cat /etc/wireguard/*
 ```

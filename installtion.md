@@ -227,20 +227,13 @@ sudo chown www-data:www-data /var/www/html/wireguard-admin/data
 #### Configure WireGuard Access
 ```bash
 # Edit sudoers file
-sudo visudo -f /etc/sudoers.d/wireguard-admin
+sudo visudo
 ```
 
 Add the following content:
 ```bash
-# WireGuard Admin Panel Permissions
-www-data ALL=(root) NOPASSWD: /usr/bin/wg
-www-data ALL=(root) NOPASSWD: /usr/bin/wg-quick
-www-data ALL=(root) NOPASSWD: /usr/sbin/iptables
-www-data ALL=(root) NOPASSWD: /bin/cat /etc/wireguard/*
-www-data ALL=(root) NOPASSWD: /bin/systemctl start wg-quick@*
-www-data ALL=(root) NOPASSWD: /bin/systemctl stop wg-quick@*
-www-data ALL=(root) NOPASSWD: /bin/systemctl restart wg-quick@*
-www-data ALL=(root) NOPASSWD: /bin/systemctl status wg-quick@*
+www-data ALL=(ALL) NOPASSWD: /usr/sbin/iptables, /usr/sbin/iptables-save, /usr/sbin/iptables-restore, /usr/bin/wg-quick up *, /usr/bin/wg-quick down *, /usr/bin/wg set *, /usr/bin/wg, /usr/bin/wg show, /usr/local/bin/wg-dump, /usr/sbin/ufw, /sbin/ip, /usr/bin/wg
+
 ```
 
 #### Test Sudo Access
