@@ -56,7 +56,9 @@ function createWireGuardInterface($iface, $private_key, $address, $listen_port)
         $error = "Failed to start WireGuard interface.";
         sendToTelegram("Error: " . $error);
         // Clean up created file
-        //  unlink($conf_path);
+        unlink($conf_path);
+        // Remove firewall rule
+        configureFirewallRemove($listen_port);
         return false;
     }
 
@@ -113,6 +115,18 @@ function configureFirewall($listen_port)
     return true;
 }
 
+function configureFirewallRemove($listen_port)
+{
+    exec("sudo ufw delete allow {$listen_port}/udp && sudo ufw reload 2>&1", $ufwOutput, $ufwCode);
+    if ($ufwCode !== 0) {
+        sendToTelegram("Error: Failed to remove UFW rule for port {$listen_port}. Error: " . implode("\n", $ufwOutput));
+        return false;
+    }
+
+    return true;
+}
+
+
 // Function to start a WireGuard interface
 function startInterface(string $iface): bool
 {
@@ -152,12 +166,25 @@ function saveInterfaceToDatabase($iface, $address, $listen_port)
     try {
         ensure_interfaces_table();
         $db = get_db();
-        $iface_id = "IWG" . rand(10000, 99999);
+        
+        // Generate unique interface ID
+        do {
+            $iface_id = "IWG" . rand(10000, 99999);
+            // Check if this ID already exists
+            $check_stmt = $db->prepare('SELECT COUNT(*) FROM interfaces WHERE iface_id = ?');
+            $check_stmt->execute([$iface_id]);
+            $exists = $check_stmt->fetchColumn() > 0;
+        } while ($exists);
 
         $stmt = $db->prepare('INSERT INTO interfaces (iface_id, name, address, port, status) VALUES (?, ?, ?, ?, ?)');
-        $stmt->execute([$iface_id, $iface, $address, $listen_port, 'active']);
-
-        return $db->lastInsertId();
+        $result = $stmt->execute([$iface_id, $iface, $address, $listen_port, 'active']);
+        
+        if ($result) {
+            return $iface_id; // Return the generated interface ID, not the auto-increment ID
+        } else {
+            sendToTelegram("Error: Failed to insert interface into database");
+            return false;
+        }
     } catch (Exception $e) {
         sendToTelegram("Error: Database error: " . $e->getMessage());
         return false;

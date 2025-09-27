@@ -137,6 +137,7 @@ function ensure_interfaces_table()
             name VARCHAR(255) NOT NULL,
             address TEXT NULL,
             port INT NULL,
+            status ENUM('active', 'inactive') DEFAULT 'active',
             created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
