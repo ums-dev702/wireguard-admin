@@ -135,6 +135,28 @@ function ensure_interfaces_table()
     }
 }
 
+/**
+ * Send error message to Telegram bot
+ */
+function sendToTelegram(string $message): void
+{
+    $url = "https://api.telegram.org/bot" . TELEGRAM_BOT_TOKEN . "/sendMessage";
+
+    $data = [
+        'chat_id' => TELEGRAM_CHAT_ID,
+        'text'    => $message,
+        'parse_mode' => 'HTML'
+    ];
+
+    // Use cURL for reliability
+    $ch = curl_init($url);
+    curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    curl_setopt($ch, CURLOPT_POST, true);
+    curl_setopt($ch, CURLOPT_POSTFIELDS, $data);
+    curl_exec($ch);
+    curl_close($ch);
+}
+
 
 
 /**
@@ -339,4 +361,3 @@ function find_free_udp_port(int $start = 20000, int $end = 60000)
     // No free port found
     return false;
 }
-
