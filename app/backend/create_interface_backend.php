@@ -1,4 +1,7 @@
 <?php
+include_once __DIR__ . '/../../config.php';
+include_once __DIR__ . '/../../autoloader.php';
+include_once __DIR__ . '/../../includes/functions.php';
 
 // Function to handle interface creation
 function createWireGuardInterface($iface, $private_key, $address, $listen_port)
@@ -70,7 +73,7 @@ function createWireGuardInterface($iface, $private_key, $address, $listen_port)
         $success_msg .= "Address: $address\n";
         $success_msg .= "Listen Port: $listen_port\n";
         $success_msg .= "===============================\n";
-        
+
 
         sendToTelegram($success_msg);
         return $iface_id;
