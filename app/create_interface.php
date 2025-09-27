@@ -433,9 +433,11 @@ if (!$listen_port) $listen_port = 51820;
             <thead>
               <tr>
                 <th>ID</th>
+                <th>WG ID</th>
                 <th>Name</th>
                 <th>Address</th>
                 <th>Port</th>
+                <th>Status</th>
                 <th>Created</th>
                 <th>Actions</th>
               </tr>
@@ -444,9 +446,11 @@ if (!$listen_port) $listen_port = 51820;
               <?php foreach ($rows as $row): ?>
                 <tr>
                   <td>#<?= htmlspecialchars($row['id']) ?></td>
+                  <td><?= htmlspecialchars($row['iface_id']) ?></td>
                   <td><?= htmlspecialchars($row['name']) ?></td>
                   <td><?= htmlspecialchars($row['address']) ?></td>
                   <td><?= htmlspecialchars($row['port']) ?></td>
+                  <td><?= htmlspecialchars($row['status']) ?></td>
                   <td><?= date('M j, Y', strtotime($row['created_at'])) ?></td>
                   <td>
                     <div class="action-buttons">
