@@ -433,8 +433,8 @@ if (!$listen_port) $listen_port = 51820;
             <thead>
               <tr>
                 <th>ID</th>
-                <th>WG ID</th>
                 <th>Name</th>
+                <th>WG ID</th>
                 <th>Address</th>
                 <th>Port</th>
                 <th>Status</th>
@@ -443,13 +443,17 @@ if (!$listen_port) $listen_port = 51820;
               </tr>
             </thead>
             <tbody>
-              <?php 
+              <?php
               $no = 1;
               foreach ($rows as $row): ?>
                 <tr>
                   <td>#<?= $no++ ?></td>
+                  <td>
+                    <a href="wg_status.php?interface=<?= urlencode($row['iface_id']) ?>" style="color: var(--text-light); text-decoration: none;">
+                      <?= htmlspecialchars($row['name']) ?>
+                    </a>
+                  </td>
                   <td><?= htmlspecialchars($row['iface_id']) ?></td>
-                  <td><?= htmlspecialchars($row['name']) ?></td>
                   <td><?= htmlspecialchars($row['address']) ?></td>
                   <td><?= htmlspecialchars($row['port']) ?></td>
                   <td><?= htmlspecialchars($row['status']) ?></td>

@@ -174,6 +174,80 @@ function sendToTelegram(string $message): void
 
 
 /**
+ * Get all available WireGuard interfaces
+ * This function scans for WireGuard configuration files and running interfaces
+ *
+ * @return array Array of interface names
+ */
+function get_available_interfaces(): array
+{
+    $interfaces = [];
+    
+    // 1. Check for configuration files in /etc/wireguard/
+    $config_dir = '/etc/wireguard/';
+    if (is_dir($config_dir)) {
+        $config_files = glob($config_dir . '*.conf');
+        foreach ($config_files as $config_file) {
+            $basename = basename($config_file, '.conf');
+            // Remove 'wg_' prefix if it exists to get clean interface name
+            $interface_name = str_replace('wg_', '', $basename);
+            if (!empty($interface_name)) {
+                $interfaces[] = $interface_name;
+            }
+        }
+    }
+    
+    // 2. Check for running WireGuard interfaces using 'wg show'
+    $wg_output = shell_exec('sudo wg show 2>/dev/null');
+    if ($wg_output) {
+        $lines = explode("\n", trim($wg_output));
+        foreach ($lines as $line) {
+            if (preg_match('/^interface:\s*(\S+)/', $line, $matches)) {
+                $interface_name = $matches[1];
+                // Remove 'wg_' prefix if it exists
+                $interface_name = str_replace('wg_', '', $interface_name);
+                if (!empty($interface_name) && !in_array($interface_name, $interfaces)) {
+                    $interfaces[] = $interface_name;
+                }
+            }
+        }
+    }
+    
+    // 3. Check interfaces from database
+    try {
+        $db = get_db();
+        $stmt = $db->prepare('SELECT DISTINCT name FROM interfaces WHERE status = ?');
+        $stmt->execute(['active']);
+        $db_interfaces = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+        
+        foreach ($db_interfaces as $db_interface) {
+            if (!empty($db_interface) && !in_array($db_interface, $interfaces)) {
+                $interfaces[] = $db_interface;
+            }
+        }
+    } catch (Exception $e) {
+        // If database query fails, just log it and continue
+        error_log("Error fetching interfaces from database: " . $e->getMessage());
+    }
+    
+    // 4. Add the default interface from config if not already present
+    if (defined('WG_IFACE') && !empty(WG_IFACE) && !in_array(WG_IFACE, $interfaces)) {
+        $interfaces[] = WG_IFACE;
+    }
+    
+    // Remove duplicates and sort
+    $interfaces = array_unique($interfaces);
+    sort($interfaces);
+    
+    // If no interfaces found, return at least the default one
+    if (empty($interfaces) && defined('WG_IFACE') && !empty(WG_IFACE)) {
+        $interfaces = [WG_IFACE];
+    }
+    
+    return $interfaces;
+}
+
+/**
  * Check whether an IP address is currently in use.
  *
  * @param string $ip IPv4 address (e.g. "10.0.0.5")

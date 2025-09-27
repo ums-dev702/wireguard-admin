@@ -2,7 +2,8 @@
 require_once __DIR__ . '/../includes/header.php';
 
 // Get available interfaces
-$available_interfaces = ['wg0', 'wg1', 'wg2', 'wg3'];
+$available_interfaces = get_available_interfaces();
+
 $current_interface = $_GET['interface'] ?? WG_IFACE;
 
 // Validate interface name (security check)
