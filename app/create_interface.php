@@ -305,6 +305,37 @@ if (!$listen_port) $listen_port = 51820;
     font-size: 0.875rem;
   }
 
+  .interface-link {
+    display: inline-flex;
+    align-items: center;
+    color: var(--primary) !important;
+    text-decoration: none !important;
+    font-weight: 500;
+    padding: 0.5rem 0.75rem;
+    border-radius: 0.5rem;
+    transition: var(--transition);
+    background: rgba(16, 185, 129, 0.1);
+    border: 1px solid rgba(16, 185, 129, 0.2);
+    white-space: nowrap;
+  }
+
+  .interface-link:hover {
+    background: rgba(16, 185, 129, 0.2);
+    border-color: var(--primary);
+    color: #ffffff !important;
+    transform: translateY(-1px);
+    box-shadow: 0 4px 8px rgba(16, 185, 129, 0.3);
+  }
+
+  .interface-link i {
+    color: var(--primary);
+    transition: var(--transition);
+  }
+
+  .interface-link:hover i {
+    color: #ffffff;
+  }
+
   @media (max-width: 768px) {
     .page-header {
       flex-direction: column;
@@ -449,8 +480,9 @@ if (!$listen_port) $listen_port = 51820;
                 <tr>
                   <td>#<?= $no++ ?></td>
                   <td>
-                    <a href="wg_status?interface=<?= urlencode($row['iface_id']) ?>"
-                      style="color: blue; text-decoration: underline; cursor: pointer;">
+                    <a href="wg_status?interface="wg_<?= urlencode($row['name']) ?>" 
+                       class="interface-link">
+                      <i class="fas fa-network-wired mr-2"></i>
                       <?= htmlspecialchars($row['name']) ?>
                     </a>
                   </td>
