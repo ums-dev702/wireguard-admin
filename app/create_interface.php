@@ -480,7 +480,7 @@ if (!$listen_port) $listen_port = 51820;
                 <tr>
                   <td>#<?= $no++ ?></td>
                   <td>
-                    <a href="wg_status?interface="wg_<?= urlencode($row['name']) ?>" 
+                    <a href="wg_status?interface=wg_<?= urlencode($row['name']) ?>" 
                        class="interface-link">
                       <i class="fas fa-network-wired mr-2"></i>
                       <?= htmlspecialchars($row['name']) ?>
