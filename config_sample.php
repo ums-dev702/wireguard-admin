@@ -13,11 +13,7 @@ define('WG_PUBLIC_KEY', 'YOUR_WG_PUBLIC_KEY_HERE');
 define('WG_PRIVATE_KEY', 'YOUR_WG_PRIVATE_KEY_HERE');
 define('TELEGRAM_BOT_TOKEN', 'YOUR_BOT_TOKEN_HERE');
 define('TELEGRAM_CHAT_ID', 'YOUR_CHAT_ID_HERE');
-
-define('WG_IFACE', 'wg0');
 define('SERVER_IP', 'wg-vpn.netxtreme.top');
-define('SERVER_PORT', '51820');
-define('SUBNET', '10.0.0.0/24');
 // Security Settings
 define('SESSION_TIMEOUT', 1800); // 30 minutes
 define('ENABLE_LOGGING', true);
