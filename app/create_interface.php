@@ -364,7 +364,7 @@ if (!$listen_port) $listen_port = 51820;
       <div class="modal-content glass-effect">
         <button class="close-btn" onclick="document.getElementById('createModal').style.display='none'">&times;</button>
         <h2 class="modal-title"><i class="fas fa-plus-circle"></i> Create Interface</h2>
-        <form method="POST" autocomplete="off" action="backend/create_interface_backend.php">
+        <form method="POST" autocomplete="off" action="app/backend/create_interface_backend.php">
           <div class="form-group">
             <label class="form-label" for="iface">
               Interface Name <span class="text-warning">(Max 8 characters)</span>
