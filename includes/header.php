@@ -7,19 +7,7 @@ if (!is_authenticated()) {
   header('Location: login?error=Please+login to access+the dashboard');
   exit;
 }
-// Database connection helper
-function get_db()
-{
-    try {
-        // Create PDO instance
-        $db = new PDO("mysql:host=" . DB_HOST . ";dbname=" . DB_NAME . ";port=" . DB_PORT, DB_USER, DB_PASS);
-        // Set PDO error mode
-        $db->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
-        return $db;
-    } catch (PDOException $e) {
-        die("Database connection failed: " . $e->getMessage());
-    }
-}
+
 
 // Ensure $port_rules is always an array before any usage
 if (!isset($port_rules) || !is_array($port_rules)) {

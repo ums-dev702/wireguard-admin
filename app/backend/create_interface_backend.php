@@ -2,6 +2,7 @@
 include_once __DIR__ . '/../../config.php';
 include_once __DIR__ . '/../../autoloader.php';
 include_once __DIR__ . '/../../includes/functions.php';
+$db = new \WireGuardAdmin\Database();
 
 // Function to handle interface creation
 function createWireGuardInterface($iface, $private_key, $address, $listen_port)
@@ -55,7 +56,7 @@ function createWireGuardInterface($iface, $private_key, $address, $listen_port)
         $error = "Failed to start WireGuard interface.";
         sendToTelegram("Error: " . $error);
         // Clean up created file
-     //  unlink($conf_path);
+        //  unlink($conf_path);
         return false;
     }
 
@@ -276,7 +277,6 @@ if (isset($_POST['create_interface'])) {
     } else {
         header('Location: ../../create_interface?error=Failed to create WireGuard interface. ' . ($error ?? ''));
     }
-
 }
 
 // Delete interface handler
