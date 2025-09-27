@@ -41,6 +41,7 @@ if (!$listen_port) $listen_port = 51820;
       opacity: 0;
       transform: translateY(30px);
     }
+
     to {
       opacity: 1;
       transform: translateY(0);
@@ -209,6 +210,7 @@ if (!$listen_port) $listen_port = 51820;
       opacity: 0;
       transform: scale(0.9);
     }
+
     to {
       opacity: 1;
       transform: scale(1);
@@ -330,7 +332,9 @@ if (!$listen_port) $listen_port = 51820;
       flex-direction: column;
     }
 
-    .btn-primary, .btn-secondary, .btn-danger {
+    .btn-primary,
+    .btn-secondary,
+    .btn-danger {
       width: 100%;
       justify-content: center;
     }
@@ -417,13 +421,13 @@ if (!$listen_port) $listen_port = 51820;
     <!-- Table of interfaces -->
     <div class="table-container">
       <h2 style="color: var(--text-light); font-size: 1.25rem; margin-bottom: 1rem;">All Interfaces</h2>
-      
+
       <?php
       try {
         ensure_interfaces_table();
         $db = get_db();
         $rows = $db->query('SELECT * FROM interfaces ORDER BY id DESC')->fetchAll(PDO::FETCH_ASSOC);
-        
+
         if (count($rows) > 0): ?>
           <table class="data-table">
             <thead>
@@ -470,7 +474,7 @@ if (!$listen_port) $listen_port = 51820;
               <i class="fas fa-plus"></i> Create Interface
             </button>
           </div>
-        <?php endif;
+      <?php endif;
       } catch (Exception $e) {
         echo '<div class="alert alert-error">Error loading interfaces: ' . htmlspecialchars($e->getMessage()) . '</div>';
       }
@@ -489,7 +493,7 @@ if (!$listen_port) $listen_port = 51820;
   const privateKeyInput = document.getElementById('private_key');
   const toggleBtn = document.getElementById('togglePrivateKey');
   const icon = document.getElementById('privateKeyIcon');
-  
+
   if (privateKeyInput && toggleBtn && icon) {
     toggleBtn.addEventListener('click', function(e) {
       e.preventDefault();
