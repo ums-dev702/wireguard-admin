@@ -21,15 +21,14 @@ spl_autoload_register(function ($class) {
 
 // Define routes
 $routes = [
-    '/'                => 'auth/login.php',
+    '/'          => 'auth/login.php',
     '/login'           => 'auth/login.php',
     '/logout'          => 'auth/logout.php',
     '/dashboard'       => 'dashboard.php',
     '/create_interface' => 'create_interface.php',
-    '/peers'           => 'peers-and-forwarding.php',
-    '/port-forwarding' => 'port-forwarding.php',
-    '/mikrotik'        => 'mikrotik.php',
-    '/wg-peers'        => 'wg-peers.php',
+    '/wg_peers'        => 'wg-peers.php',
+    '/wg_status'       => 'wg_status.php',
+    '/logs'           => 'logs.php',
 ];
 
 // Get request path (without query string)

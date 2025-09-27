@@ -1,6 +1,12 @@
 <?php
 require_once __DIR__ . '/../config.php';
 require_once __DIR__ . '/../autoloader.php';
+require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/auth.php';
+if (!is_authenticated()) {
+  header('Location: login?error=Please+login to access+the dashboard');
+  exit;
+}
 // Database connection helper
 function get_db()
 {
@@ -443,14 +449,14 @@ try {
                 </a>
                 <a href="create_interface" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-plus-circle mr-3 text-green-400"></i>
-                    Create WG Interface
+                    WG Interface
                 </a>
-                <a href="peers-and-forwarding" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
+                <a href="wg_peers" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-user-friends mr-3 text-green-500"></i>
-                    Peers & Forwarding
+                    WG Peers
                 </a>
 
-                <a href="wg-status" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
+                <a href="wg_status" class="nav-link flex items-center p-3" onclick="closeMenuOnMobile()">
                     <i class="fas fa-server mr-3 text-blue-400"></i>
                     WG Status
                 </a>
@@ -501,3 +507,28 @@ try {
                 </div>
             </div>
         </div>
+
+
+<?php if (isset($_GET['success'])): ?>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        Swal.fire({
+            icon: 'success',
+            title: 'Success!',
+            text: "<?= htmlspecialchars($_GET['success']) ?>",
+            confirmButtonColor: '#13b261'
+        });
+    </script>
+<?php endif; ?>
+
+<?php if (isset($_GET['error'])): ?>
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+    <script>
+        Swal.fire({
+            icon: 'error',
+            title: 'Oops...',
+            text: "<?= htmlspecialchars($_GET['error']) ?>",
+            confirmButtonColor: '#f23635'
+        });
+    </script>
+<?php endif; ?>

@@ -1,144 +1,13 @@
 <?php
 require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/header.php';
-if (!is_authenticated()) {
-  header('Location: login');
-  exit;
-}
 
-// Your existing PHP code remains the same...
-// Ensure interfaces table exists
-function ensure_interfaces_table()
-{
-  $db = get_db(); // assumes get_db() returns a PDO connected to MySQL/MariaDB
-
-  try {
-    $sql = "CREATE TABLE IF NOT EXISTS interfaces (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            iface_id VARCHAR(191) NOT NULL UNIQUE,
-            name VARCHAR(255) NOT NULL,
-            address TEXT NULL,
-            port INT NULL,
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-
-    $db->exec($sql);
-  } catch (PDOException $e) {
-    // Log and rethrow or handle as appropriate
-    error_log('Error creating interfaces table: ' . $e->getMessage());
-    throw $e;
-  }
-}
-
-$success = '';
-$error = '';
-
-
-// Helper: Find a free UDP port (Linux)
-function find_free_port($start = 20000, $end = 60000)
-{
-    for ($port = $start; $port <= $end; $port++) {
-        // First check with ss command
-        $output = shell_exec("ss -lun | awk '{print \$5}' | grep -w ':$port' | wc -l");
-
-        $count = $output !== null ? trim($output) : '0';
-
-        if ($count === '0') {
-            // Double-check by trying to bind the port
-            $sock = @stream_socket_server("udp://0.0.0.0:$port", $errno, $errstr, STREAM_SERVER_BIND);
-            if ($sock) {
-                fclose($sock); // release immediately
-                return $port;  // port is free
-            }
-        }
-    }
-    return false; // no free port found
-}
-
-// Initialize variables for all cases
-$iface = '';
 $private_key = defined('WG_PRIVATE_KEY') ? WG_PRIVATE_KEY : '';
-$dns = '';
-// Generate random address and free port by default
 $rand = rand(2, 254);
 $address = "10.0.0.$rand/24";
 $listen_port = find_free_port();
 if (!$listen_port) $listen_port = 51820;
 
-// If POST, override with submitted values
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-  $iface = trim((string)($_POST['iface'] ?? ''));
-  $private_key = trim((string)($_POST['private_key'] ?? $private_key));
-  $listen_port = trim((string)($_POST['listen_port'] ?? $listen_port));
-  $address = trim((string)($_POST['address'] ?? $address));
-
-  // Handle address/port generation buttons
-  if (isset($_POST['generate_address'])) {
-    $rand = rand(2, 254);
-    $address = "10.0.0.$rand/24";
-    $success = "Address $address generated.";
-  }
-  if (isset($_POST['generate_port'])) {
-    $free_port = find_free_port();
-    if ($free_port) {
-      $listen_port = $free_port;
-      $success = "Free port $free_port generated.";
-    } else {
-      $error = "No free port found in range.";
-    }
-  }
-
-  // Main create logic
-  if (isset($_POST['create_interface'])) {
-    if (strlen($iface) > 8) {
-      $error = "Interface name must not exceed 8 characters.";
-    }
-    if ($iface && $private_key && $address) {
-      if (empty($error)) {
-        $conf = "[Interface]\n";
-        $conf .= "PrivateKey = $private_key\n";
-        $conf .= "Address = $address\n";
-        $conf .= "ListenPort = $listen_port\n";
-        $conf .= "SaveConfig = true\n\n";
-        $conf .= "PostUp = ufw route allow in on wg0 out on eth0\n";
-        $conf .= "PostUp = iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE\n";
-        $conf .= "PreDown = ufw route delete allow in on wg0 out on eth0\n";
-        $conf .= "PreDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE\n";
-        $conf_path = "/etc/wireguard/wg_$iface.conf";
-        if (file_exists($conf_path)) {
-          $error = "Interface configuration already exists.";
-        } else {
-          if (file_put_contents($conf_path, $conf) !== false) {
-
-            // all port on ufw
-            shell_exec("sudo ufw allow $listen_port/udp");
-
-
-            //genrate a rendom  inderface id previx IWG
-            $iface_id = "IWG" . rand(10000, 99999);
-            // Bring up the interface
-            $output = shell_exec("sudo wg-quick up $iface 2>&1");
-            // Add to database
-            try {
-              ensure_interfaces_table();
-              $db = get_db();
-              $stmt = $db->prepare('INSERT INTO interfaces (iface_id, name, address, port) VALUES (?, ?, ?, ?)');
-              $stmt->execute([$iface_id, $iface, $address, $listen_port]);
-              $iface_id = $db->lastInsertId();
-              $success = "WireGuard interface '$iface' (ID: $iface_id) created, started, and saved to database.";
-            } catch (Exception $e) {
-              $success = "WireGuard interface '$iface' created and started, but failed to save to database: " . $e->getMessage();
-            }
-          } else {
-            $error = "Failed to write configuration file.";
-          }
-        }
-      }
-    } else {
-      if (empty($error)) $error = "All required fields must be filled.";
-    }
-  }
-}
 ?>
 <style>
   :root {
@@ -491,19 +360,12 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
         <i class="fas fa-plus"></i> New Interface
       </button>
     </div>
-
-    <?php if ($success): ?>
-      <div class="alert alert-success"><?= htmlspecialchars($success) ?></div>
-    <?php elseif ($error): ?>
-      <div class="alert alert-error"><?= htmlspecialchars($error) ?></div>
-    <?php endif; ?>
-
     <!-- Modal for create interface -->
     <div id="createModal" class="modal">
       <div class="modal-content glass-effect">
         <button class="close-btn" onclick="document.getElementById('createModal').style.display='none'">&times;</button>
         <h2 class="modal-title"><i class="fas fa-plus-circle"></i> Create Interface</h2>
-        <form method="POST" autocomplete="off">
+        <form method="POST" autocomplete="off" action="backend/create_interface_backend.php">
           <div class="form-group">
             <label class="form-label" for="iface">
               Interface Name <span class="text-warning">(Max 8 characters)</span>

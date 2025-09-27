@@ -1,44 +1,12 @@
 <?php
-// Check if installation is complete
 $db = new \WireGuardAdmin\Database();
 $auth = new \WireGuardAdmin\Auth($db, SESSION_TIMEOUT);
-$error = '';
-$success = '';
-
+$db = new \WireGuardAdmin\Database();
 // Redirect if already authenticated
 if ($auth->isAuthenticated()) {
-    header('Location: dashboard');
+    header('Location: dashboard?success=Already logged in');
     exit;
 }
-
-if ($_SERVER['REQUEST_METHOD'] === 'POST') {
-    $username = $_POST['username'] ?? '';
-    $password = $_POST['password'] ?? '';
-    $rememberMe = isset($_POST['remember_me']);
-
-    // Basic rate limiting (simple implementation)
-    $attempts = $_SESSION['login_attempts'] ?? 0;
-    $lastAttempt = $_SESSION['last_attempt'] ?? 0;
-
-    if ($attempts >= MAX_LOGIN_ATTEMPTS && (time() - $lastAttempt) < 300) {
-        $error = "Too many failed attempts. Please try again in 5 minutes.";
-    } else {
-        if ($auth->login($username, $password, $rememberMe)) {
-            // Reset attempts on successful login
-            unset($_SESSION['login_attempts']);
-            unset($_SESSION['last_attempt']);
-
-            header('Location: dashboard');
-            exit;
-        } else {
-            $_SESSION['login_attempts'] = $attempts + 1;
-            $_SESSION['last_attempt'] = time();
-            $error = "Invalid credentials";
-        }
-    }
-}
-
-$csrfToken = $auth->generateCSRFToken();
 ?>
 <!DOCTYPE html>
 <html lang="en">
@@ -46,7 +14,6 @@ $csrfToken = $auth->generateCSRFToken();
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-
     <title>Login - <?= APP_NAME ?></title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
@@ -230,27 +197,7 @@ $csrfToken = $auth->generateCSRFToken();
                     </div>
                 <?php endif; ?>
 
-                <?php if ($error): ?>
-                    <div class="bg-red-500 bg-opacity-20 border border-red-500 border-opacity-50 text-red-200 p-4 mb-6 rounded-lg error-shake" role="alert">
-                        <div class="flex items-center">
-                            <i class="fas fa-exclamation-triangle mr-2"></i>
-                            <?= htmlspecialchars($error) ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-                <?php if ($success): ?>
-                    <div class="bg-green-500 bg-opacity-20 border border-green-500 border-opacity-50 text-green-200 p-4 mb-6 rounded-lg" role="alert">
-                        <div class="flex items-center">
-                            <i class="fas fa-check-circle mr-2"></i>
-                            <?= htmlspecialchars($success) ?>
-                        </div>
-                    </div>
-                <?php endif; ?>
-
-                <form method="POST" class="space-y-6" autocomplete="on">
-                    <input type="hidden" name="csrf_token" value="<?= $csrfToken ?>">
-
+                <form method="POST" class="space-y-6" autocomplete="on" action="app/backend/auth_backend.php">
                     <div>
                         <label for="username" class="block text-sm font-medium text-gray-200 mb-2">
                             <i class="fas fa-user mr-2"></i>Username
@@ -268,16 +215,6 @@ $csrfToken = $auth->generateCSRFToken();
                         <input type="password" id="password" name="password" required autocomplete="current-password"
                             class="w-full px-4 py-3 bg-white bg-opacity-20 border border-white border-opacity-30 rounded-lg text-white placeholder-gray-300 input-focus focus:outline-none"
                             placeholder="Enter your password">
-                    </div>
-
-                    <div class="flex items-center justify-between">
-                        <div class="flex items-center">
-                            <input type="checkbox" id="remember_me" name="remember_me"
-                                class="w-4 h-4 text-green-600 bg-white bg-opacity-20 border-gray-300 rounded focus:ring-green-500">
-                            <label for="remember_me" class="ml-2 text-sm text-gray-200">
-                                Remember me
-                            </label>
-                        </div>
                     </div>
 
                     <button type="submit" class="w-full btn-login text-white py-3 rounded-lg font-semibold">
