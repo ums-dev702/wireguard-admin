@@ -118,7 +118,7 @@ function startInterface(string $iface): bool
     // Sanitize interface name (avoid injection)
     $iface = escapeshellarg($iface);
 
-    exec("sudo /usr/bin/wg-quick up {$iface} 2>&1", $wgOutput, $wgCode);
+    exec("sudo /usr/bin/wg-quick up {wg_$iface} 2>&1", $wgOutput, $wgCode);
 
     if ($wgCode !== 0) {
         sendToTelegram("Error: Failed to start WireGuard interface {$iface}. Error: " . implode("\n", $wgOutput));
@@ -134,7 +134,7 @@ function stopInterface(string $iface): bool
     // Sanitize interface name (avoid injection)
     $iface = escapeshellarg($iface);
 
-    exec("sudo /usr/bin/wg-quick down {$iface} 2>&1", $wgOutput, $wgCode);
+    exec("sudo /usr/bin/wg-quick down {wg_$iface} 2>&1", $wgOutput, $wgCode);
 
     if ($wgCode !== 0) {
         sendToTelegram("Error: Failed to stop WireGuard interface {$iface}. Error: " . implode("\n", $wgOutput));
@@ -269,7 +269,13 @@ if (isset($_POST['create_interface'])) {
     $listen_port = trim((string)($_POST['listen_port'] ?? ''));
     $address = trim((string)($_POST['address'] ?? ''));
 
-    createWireGuardInterface($iface, $private_key, $address, $listen_port);
+    $createWireGuardInterface = createWireGuardInterface($iface, $private_key, $address, $listen_port);
+    if ($createWireGuardInterface) {
+        header('Location: ../../create_interface?success=WireGuard interface created successfully.');
+    } else {
+        header('Location: ../../create_interface?error=Failed to create WireGuard interface. ' . ($error ?? ''));
+    }
+
 }
 
 // Delete interface handler
