@@ -327,9 +327,48 @@ if (isset($_POST['edit_interface'])) {
     $port = trim((string)($_POST['port'] ?? ''));
 
     if ($iface_id && $iface_name && $address && $port) {
-        editWireGuardInterface($iface_id, $iface_name, $address, $port);
+        $result = editWireGuardInterface($iface_id, $iface_name, $address, $port);
+        if ($result) {
+            header('Location: ../../create_interface?success=Interface updated successfully.');
+        } else {
+            header('Location: ../../create_interface?error=Failed to update interface.');
+        }
     } else {
         $error = "All fields are required for editing.";
         sendToTelegram("Error: " . $error);
+        header('Location: ../../create_interface?error=' . urlencode($error));
     }
+    exit;
+}
+
+// Handle delete by ID (from interface table)
+if (isset($_POST['delete_id'])) {
+    $delete_id = trim((string)($_POST['delete_id'] ?? ''));
+    
+    if ($delete_id) {
+        try {
+            // Get interface details by ID
+            $db = get_db();
+            $stmt = $db->prepare('SELECT * FROM interfaces WHERE id = ?');
+            $stmt->execute([$delete_id]);
+            $interface = $stmt->fetch(PDO::FETCH_ASSOC);
+            
+            if ($interface) {
+                $result = deleteWireGuardInterface($interface['iface_id'], $interface['name']);
+                if ($result) {
+                    header('Location: ../../create_interface?success=Interface deleted successfully.');
+                } else {
+                    header('Location: ../../create_interface?error=Failed to delete interface.');
+                }
+            } else {
+                header('Location: ../../create_interface?error=Interface not found.');
+            }
+        } catch (Exception $e) {
+            sendToTelegram("Error deleting interface: " . $e->getMessage());
+            header('Location: ../../create_interface?error=Database error occurred.');
+        }
+    } else {
+        header('Location: ../../create_interface?error=Invalid interface ID.');
+    }
+    exit;
 }

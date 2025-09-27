@@ -449,6 +449,45 @@ if (!$listen_port) $listen_port = 51820;
       </div>
     </div>
 
+    <!-- Modal for edit interface -->
+    <div id="editModal" class="modal">
+      <div class="modal-content glass-effect">
+        <button class="close-btn" onclick="document.getElementById('editModal').style.display='none'">&times;</button>
+        <h2 class="modal-title"><i class="fas fa-edit"></i> Edit Interface</h2>
+        <form method="POST" action="app/backend/create_interface_backend.php">
+          <input type="hidden" id="edit_iface_id" name="iface_id" value="">
+          <input type="hidden" id="edit_iface_name" name="iface_name" value="">
+          
+          <div class="form-group">
+            <label class="form-label" for="edit_interface_name">
+              Interface Name
+            </label>
+            <input class="form-input" type="text" id="edit_interface_name" readonly
+              style="background: rgba(255, 255, 255, 0.05); opacity: 0.7;">
+            <p class="text-muted">Interface name cannot be changed after creation</p>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="edit_address">Address</label>
+            <input class="form-input" type="text" id="edit_address" name="address" required
+              placeholder="e.g., 10.0.0.1/24">
+          </div>
+
+          <div class="form-group">
+            <label class="form-label" for="edit_port">Listen Port</label>
+            <input class="form-input" type="number" id="edit_port" name="port" required
+              placeholder="51820" min="1" max="65535">
+          </div>
+
+          <div class="form-group" style="margin-top: 2rem;">
+            <button class="btn-primary" type="submit" name="edit_interface" style="width: 100%;">
+              <i class="fas fa-save"></i> Update Interface
+            </button>
+          </div>
+        </form>
+      </div>
+    </div>
+
     <!-- Table of interfaces -->
     <div class="table-container">
       <h2 style="color: var(--text-light); font-size: 1.25rem; margin-bottom: 1rem;">All Interfaces</h2>
@@ -493,10 +532,10 @@ if (!$listen_port) $listen_port = 51820;
                   <td><?= date('M j, Y', strtotime($row['created_at'])) ?></td>
                   <td>
                     <div class="action-buttons">
-                      <button class="btn-secondary" onclick="alert('Edit functionality coming soon')">
+                      <button class="btn-secondary" onclick="openEditModal('<?= htmlspecialchars($row['iface_id']) ?>', '<?= htmlspecialchars($row['name']) ?>', '<?= htmlspecialchars($row['address']) ?>', '<?= htmlspecialchars($row['port']) ?>')">
                         <i class="fas fa-edit"></i> Edit
                       </button>
-                      <form method="POST" onsubmit="return confirm('Are you sure you want to delete this interface?');" style="display: inline;">
+                      <form method="POST" action="app/backend/create_interface_backend.php" onsubmit="return confirm('Are you sure you want to delete this interface?');" style="display: inline;">
                         <input type="hidden" name="delete_id" value="<?= htmlspecialchars($row['id']) ?>">
                         <button class="btn-danger" type="submit">
                           <i class="fas fa-trash"></i> Delete
@@ -527,10 +566,24 @@ if (!$listen_port) $listen_port = 51820;
 </div>
 
 <script>
-  // Close modal on background click
+  // Close modals on background click
   document.getElementById('createModal').onclick = function(e) {
     if (e.target === this) this.style.display = 'none';
   };
+  
+  document.getElementById('editModal').onclick = function(e) {
+    if (e.target === this) this.style.display = 'none';
+  };
+
+  // Function to open edit modal with interface data
+  function openEditModal(ifaceId, ifaceName, address, port) {
+    document.getElementById('edit_iface_id').value = ifaceId;
+    document.getElementById('edit_iface_name').value = ifaceName;
+    document.getElementById('edit_interface_name').value = ifaceName;
+    document.getElementById('edit_address').value = address;
+    document.getElementById('edit_port').value = port;
+    document.getElementById('editModal').style.display = 'flex';
+  }
 
   // Toggle private key visibility
   const privateKeyInput = document.getElementById('private_key');
@@ -550,10 +603,11 @@ if (!$listen_port) $listen_port = 51820;
     });
   }
 
-  // Close modal with Escape key
+  // Close modals with Escape key
   document.addEventListener('keydown', function(e) {
     if (e.key === 'Escape') {
       document.getElementById('createModal').style.display = 'none';
+      document.getElementById('editModal').style.display = 'none';
     }
   });
 </script>
