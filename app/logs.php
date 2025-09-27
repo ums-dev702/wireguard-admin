@@ -12,7 +12,42 @@ $user_filter = isset($_GET['user']) ? trim($_GET['user']) : '';
 $date_from = isset($_GET['date_from']) ? $_GET['date_from'] : '';
 $date_to = isset($_GET['date_to']) ? $_GET['date_to'] : '';
 
+$success_message = '';
+$error_message = '';
+
 try {
+    // Handle delete all logs action
+    if (isset($_POST['delete_all_logs']) && $_POST['confirm_delete'] === 'DELETE_ALL_LOGS') {
+        $user_id = $currentUser['id'] ?? null;
+        
+        try {
+            // Get count before deletion for logging
+            $count_result = $db->select("SELECT COUNT(*) as total FROM audit_log");
+            $logs_count = $count_result[0]['total'];
+            
+            // Delete all logs
+            $db->query("DELETE FROM audit_log");
+            
+            // Log this action (ironic, but important for security)
+            $auth->logActivity(
+                $user_id,
+                'DELETE_ALL_LOGS',
+                "Deleted all audit logs ({$logs_count} entries)",
+                $_SERVER['REMOTE_ADDR'],
+                $_SERVER['HTTP_USER_AGENT']
+            );
+            
+            $success_message = "Successfully deleted {$logs_count} audit log entries.";
+            
+            // Reset pagination after deletion
+            $page = 1;
+            $offset = 0;
+            
+        } catch (Exception $e) {
+            $error_message = "Failed to delete audit logs: " . $e->getMessage();
+        }
+    }
+
     // Build query with filters
     $where_conditions = [];
     $params = [];
@@ -74,10 +109,32 @@ try {
 <!-- Logs Content -->
 <div class="p-4 lg:p-6">
     <!-- Page Header -->
-    <div class="mb-6">
-        <h1 class="text-2xl font-bold text-white mb-2">Audit Logs</h1>
-        <p class="text-gray-400">Monitor system activities and security events</p>
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-white mb-2">Audit Logs</h1>
+            <p class="text-gray-400">Monitor system activities and security events</p>
+        </div>
+        
+        <!-- Action Buttons -->
+        <div class="flex gap-3">
+            <button onclick="exportLogs()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-download mr-2"></i>Export
+            </button>
+            <button onclick="showDeleteAllModal()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
+                <i class="fas fa-trash-alt mr-2"></i>Delete All
+            </button>
+        </div>
     </div>
+
+    <?php if (isset($success_message) && $success_message): ?>
+    <!-- Success Message -->
+    <div class="glass-card p-4 mb-6 border-l-4 border-green-500">
+        <div class="flex items-center">
+            <i class="fas fa-check-circle text-green-400 mr-3"></i>
+            <span class="text-green-400"><?= htmlspecialchars($success_message) ?></span>
+        </div>
+    </div>
+    <?php endif; ?>
 
     <?php if (isset($error_message)): ?>
     <!-- Error Message -->
@@ -347,5 +404,110 @@ try {
         <?php endif; ?>
     </div>
 </div>
+
+<!-- Delete All Logs Confirmation Modal -->
+<div id="deleteAllModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="glass-card p-6 max-w-md w-full mx-4">
+        <div class="flex items-center mb-4">
+            <div class="w-12 h-12 bg-red-500 bg-opacity-10 rounded-lg flex items-center justify-center mr-4">
+                <i class="fas fa-exclamation-triangle text-red-400 text-2xl"></i>
+            </div>
+            <div>
+                <h3 class="text-lg font-semibold text-white">Delete All Audit Logs</h3>
+                <p class="text-sm text-gray-400">This action cannot be undone</p>
+            </div>
+        </div>
+
+        <div class="mb-6">
+            <p class="text-gray-300 mb-4">
+                Are you sure you want to delete <strong class="text-white"><?= number_format($total_logs) ?></strong> audit log entries? 
+                This will permanently remove all security and activity logs from the system.
+            </p>
+            <div class="bg-yellow-900 bg-opacity-20 border border-yellow-500 rounded-lg p-3 mb-4">
+                <div class="flex items-center">
+                    <i class="fas fa-warning text-yellow-400 mr-2"></i>
+                    <span class="text-yellow-300 text-sm font-medium">Warning: This action is irreversible</span>
+                </div>
+            </div>
+            <p class="text-sm text-gray-400 mb-4">
+                To confirm this action, please type <code class="bg-gray-800 px-2 py-1 rounded text-red-400">DELETE_ALL_LOGS</code> in the field below:
+            </p>
+            
+            <form method="POST" id="deleteAllForm">
+                <input type="hidden" name="delete_all_logs" value="1">
+                <input type="text" name="confirm_delete" id="confirmDeleteInput" 
+                       class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-red-500" 
+                       placeholder="Type DELETE_ALL_LOGS to confirm"
+                       autocomplete="off">
+                
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="hideDeleteAllModal()" 
+                            class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" id="confirmDeleteBtn" disabled
+                            class="px-4 py-2 bg-red-600 hover:bg-red-700 disabled:bg-red-400 disabled:cursor-not-allowed text-white rounded-lg transition-colors">
+                        <i class="fas fa-trash-alt mr-2"></i>Delete All Logs
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<script>
+function showDeleteAllModal() {
+    document.getElementById('deleteAllModal').classList.remove('hidden');
+    document.getElementById('confirmDeleteInput').focus();
+}
+
+function hideDeleteAllModal() {
+    document.getElementById('deleteAllModal').classList.add('hidden');
+    document.getElementById('deleteAllForm').reset();
+    document.getElementById('confirmDeleteBtn').disabled = true;
+}
+
+function exportLogs() {
+    // Create export URL with current filters
+    const params = new URLSearchParams(window.location.search);
+    params.set('export', 'csv');
+    window.open('export-logs.php?' + params.toString(), '_blank');
+}
+
+// Enable/disable delete button based on confirmation input
+document.getElementById('confirmDeleteInput').addEventListener('input', function(e) {
+    const confirmBtn = document.getElementById('confirmDeleteBtn');
+    confirmBtn.disabled = e.target.value !== 'DELETE_ALL_LOGS';
+});
+
+// Handle form submission with additional confirmation
+document.getElementById('deleteAllForm').addEventListener('submit', function(e) {
+    const input = document.getElementById('confirmDeleteInput').value;
+    if (input !== 'DELETE_ALL_LOGS') {
+        e.preventDefault();
+        alert('Please type "DELETE_ALL_LOGS" to confirm this action.');
+        return;
+    }
+    
+    if (!confirm('Are you absolutely sure you want to delete ALL audit logs? This cannot be undone.')) {
+        e.preventDefault();
+        return;
+    }
+});
+
+// Close modal when clicking outside
+document.getElementById('deleteAllModal').addEventListener('click', function(e) {
+    if (e.target === this) {
+        hideDeleteAllModal();
+    }
+});
+
+// Close modal with Escape key
+document.addEventListener('keydown', function(e) {
+    if (e.key === 'Escape') {
+        hideDeleteAllModal();
+    }
+});
+</script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
