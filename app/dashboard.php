@@ -1,4 +1,70 @@
-<?php require_once __DIR__ . '/../includes/header.php'; ?>
+<?php 
+require_once __DIR__ . '/../includes/header.php'; 
+
+// Get current interface (from URL or default)
+$current_interface = $_GET['interface'] ?? WG_IFACE;
+
+// Function to get interface configuration details
+function getInterfaceConfig($interface) {
+    $config = [
+        'port' => 'N/A',
+        'address' => 'N/A',
+        'subnet' => SUBNET, // fallback
+        'server_ip' => SERVER_IP // fallback
+    ];
+    
+    // Try to get from database first
+    try {
+        $db = get_db();
+        $stmt = $db->prepare('SELECT * FROM interfaces WHERE name = ? AND status = "active" LIMIT 1');
+        $stmt->execute([$interface]);
+        $db_interface = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if ($db_interface) {
+            $config['port'] = $db_interface['port'] ?? 'N/A';
+            $config['address'] = $db_interface['address'] ?? 'N/A';
+        }
+    } catch (Exception $e) {
+        error_log("Error fetching interface from database: " . $e->getMessage());
+    }
+    
+    // Try to get from WireGuard configuration file
+    $conf_path = "/etc/wireguard/wg_{$interface}.conf";
+    if (file_exists($conf_path)) {
+        $conf_content = file_get_contents($conf_path);
+        
+        // Extract ListenPort
+        if (preg_match('/ListenPort\s*=\s*(\d+)/', $conf_content, $matches)) {
+            $config['port'] = $matches[1];
+        }
+        
+        // Extract Address
+        if (preg_match('/Address\s*=\s*([^\r\n]+)/', $conf_content, $matches)) {
+            $config['address'] = trim($matches[1]);
+            // If it's a single IP, try to extract subnet
+            if (strpos($config['address'], '/') !== false) {
+                $parts = explode('/', $config['address']);
+                if (count($parts) >= 2) {
+                    $config['subnet'] = $parts[0] . '/' . $parts[1];
+                }
+            }
+        }
+    }
+    
+    // If still N/A, try to get from wg show command
+    if ($config['port'] === 'N/A') {
+        $wg_output = shell_exec("sudo wg show {$interface} listen-port 2>/dev/null");
+        if ($wg_output && trim($wg_output) !== '') {
+            $config['port'] = trim($wg_output);
+        }
+    }
+    
+    return $config;
+}
+
+// Get interface configuration
+$interface_config = getInterfaceConfig($current_interface);
+?>
 
 
     <!-- Dashboard Content -->
@@ -81,7 +147,6 @@
                         <select id="interfaceSelector" onchange="switchInterface(this.value)" class="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
                             <?php 
                             $available_interfaces = get_available_interfaces();
-                            $current_interface = $_GET['interface'] ?? WG_IFACE;
                             foreach ($available_interfaces as $iface): 
                             ?>
                             <option value="<?= $iface ?>" <?= $iface === $current_interface ? 'selected' : '' ?>>
@@ -154,15 +219,19 @@
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-xs text-gray-400">Port:</span>
-                                <span class="text-xs text-white font-mono"><?= SERVER_PORT ?></span>
+                                <span class="text-xs text-white font-mono"><?= htmlspecialchars($interface_config['port']) ?></span>
+                            </div>
+                            <div class="flex justify-between">
+                                <span class="text-xs text-gray-400">Address:</span>
+                                <span class="text-xs text-white font-mono"><?= htmlspecialchars($interface_config['address']) ?></span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-xs text-gray-400">Subnet:</span>
-                                <span class="text-xs text-white font-mono"><?= SUBNET ?></span>
+                                <span class="text-xs text-white font-mono"><?= htmlspecialchars($interface_config['subnet']) ?></span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-xs text-gray-400">Server IP:</span>
-                                <span class="text-xs text-white font-mono"><?= SERVER_IP ?></span>
+                                <span class="text-xs text-white font-mono"><?= htmlspecialchars($interface_config['server_ip']) ?></span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-xs text-gray-400">Status:</span>
