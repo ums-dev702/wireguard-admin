@@ -7,7 +7,7 @@ class WireGuard {
     private $interfaceName;
     private $configPath;
 
-    public function __construct(Database $db, $interfaceName = 'wg0', $configPath = '/etc/wireguard/wg0.conf') {
+    public function __construct(Database $db, $interfaceName = 'wg_alvodata', $configPath = '/etc/wireguard/wg_alvodata.conf') {
         $this->db = $db;
         $this->interfaceName = $interfaceName;
         $this->configPath = $configPath;
