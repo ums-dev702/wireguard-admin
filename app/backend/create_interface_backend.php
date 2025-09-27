@@ -55,7 +55,7 @@ function createWireGuardInterface($iface, $private_key, $address, $listen_port)
         $error = "Failed to start WireGuard interface.";
         sendToTelegram("Error: " . $error);
         // Clean up created file
-        unlink($conf_path);
+     //  unlink($conf_path);
         return false;
     }
 
