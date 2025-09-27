@@ -75,24 +75,82 @@
                 <div class="flex items-center justify-between mb-4 lg:mb-6">
                     <h2 class="text-lg font-bold text-white">
                         <i class="fas fa-shield-alt text-blue-400 mr-2"></i>
-                        WireGuard Overview
+                        WireGuard Interfaces Overview
                     </h2>
-                    <div class="flex items-center">
-                        <div class="w-3 h-3 rounded-full mr-2 <?= $isRunning ? 'bg-green-400' : 'bg-red-400' ?>"></div>
-                        <span class="text-sm <?= $isRunning ? 'text-green-400' : 'text-red-400' ?>">
-                            <?= $isRunning ? 'Running' : 'Stopped' ?>
-                        </span>
+                    <div class="flex items-center gap-3">
+                        <select id="interfaceSelector" onchange="switchInterface(this.value)" class="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+                            <?php 
+                            $available_interfaces = get_available_interfaces();
+                            $current_interface = $_GET['interface'] ?? WG_IFACE;
+                            foreach ($available_interfaces as $iface): 
+                            ?>
+                            <option value="<?= $iface ?>" <?= $iface === $current_interface ? 'selected' : '' ?>>
+                                <?= htmlspecialchars($iface) ?>
+                            </option>
+                            <?php endforeach; ?>
+                        </select>
+                        <div class="flex items-center">
+                            <div class="w-3 h-3 rounded-full mr-2 <?= $isRunning ? 'bg-green-400' : 'bg-red-400' ?>"></div>
+                            <span class="text-sm <?= $isRunning ? 'text-green-400' : 'text-red-400' ?>">
+                                <?= $isRunning ? 'Running' : 'Stopped' ?>
+                            </span>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Interface Summary Cards -->
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-3 mb-4">
+                    <?php
+                    try {
+                        ensure_interfaces_table();
+                        $db = get_db();
+                        $interface_stats = $db->query('SELECT COUNT(*) as total, 
+                                                     SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active
+                                                     FROM interfaces')->fetch(PDO::FETCH_ASSOC);
+                    } catch (Exception $e) {
+                        $interface_stats = ['total' => 0, 'active' => 0];
+                    }
+                    ?>
+                    
+                    <div class="bg-gray-800 bg-opacity-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-lg font-bold text-white"><?= $interface_stats['total'] ?></div>
+                                <div class="text-xs text-gray-400">Total Interfaces</div>
+                            </div>
+                            <i class="fas fa-network-wired text-blue-400"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-800 bg-opacity-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-lg font-bold text-green-400"><?= $interface_stats['active'] ?></div>
+                                <div class="text-xs text-gray-400">Active Interfaces</div>
+                            </div>
+                            <i class="fas fa-check-circle text-green-400"></i>
+                        </div>
+                    </div>
+                    
+                    <div class="bg-gray-800 bg-opacity-50 rounded-lg p-3">
+                        <div class="flex items-center justify-between">
+                            <div>
+                                <div class="text-lg font-bold text-white"><?= count($peers) ?></div>
+                                <div class="text-xs text-gray-400">Connected Peers</div>
+                            </div>
+                            <i class="fas fa-users text-purple-400"></i>
+                        </div>
                     </div>
                 </div>
 
                 <div class="grid grid-cols-1 md:grid-cols-2 gap-4 mb-6">
-                    <!-- Interface Information -->
+                    <!-- Current Interface Information -->
                     <div class="bg-gray-800 bg-opacity-50 rounded-lg p-4">
-                        <h3 class="text-sm font-medium text-gray-300 mb-3">Interface Details</h3>
+                        <h3 class="text-sm font-medium text-gray-300 mb-3">Current Interface: <?= htmlspecialchars($current_interface) ?></h3>
                         <div class="space-y-2">
                             <div class="flex justify-between">
                                 <span class="text-xs text-gray-400">Interface:</span>
-                                <span class="text-xs text-white font-mono"><?= WG_IFACE ?></span>
+                                <span class="text-xs text-white font-mono"><?= htmlspecialchars($current_interface) ?></span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-xs text-gray-400">Port:</span>
@@ -106,12 +164,18 @@
                                 <span class="text-xs text-gray-400">Server IP:</span>
                                 <span class="text-xs text-white font-mono"><?= SERVER_IP ?></span>
                             </div>
+                            <div class="flex justify-between">
+                                <span class="text-xs text-gray-400">Status:</span>
+                                <span class="text-xs <?= $isRunning ? 'text-green-400' : 'text-red-400' ?> font-medium">
+                                    <?= $isRunning ? 'Running' : 'Stopped' ?>
+                                </span>
+                            </div>
                         </div>
                     </div>
 
                     <!-- Connection Statistics -->
                     <div class="bg-gray-800 bg-opacity-50 rounded-lg p-4">
-                        <h3 class="text-sm font-medium text-gray-300 mb-3">Connection Stats</h3>
+                        <h3 class="text-sm font-medium text-gray-300 mb-3">Interface Statistics</h3>
                         <div class="space-y-2">
                             <div class="flex justify-between">
                                 <span class="text-xs text-gray-400">Active Peers:</span>
@@ -172,9 +236,13 @@
                                 class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors">
                             <i class="fas fa-sync mr-1"></i>Refresh
                         </button>
-                        <a href="wg_status?interface=<?= WG_IFACE ?>" 
+                        <a href="wg_status?interface=<?= htmlspecialchars($current_interface) ?>" 
                            class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm transition-colors">
                             <i class="fas fa-chart-line mr-1"></i>Details
+                        </a>
+                        <a href="create_interface" 
+                           class="px-3 py-1 bg-indigo-600 hover:bg-indigo-700 text-white rounded text-sm transition-colors">
+                            <i class="fas fa-plus mr-1"></i>New Interface
                         </a>
                     </div>
                 </div>
@@ -233,7 +301,7 @@
                 </h2>
 
                 <div class="space-y-3">
-                    <a href="wg-peers.php?action=add" class="block w-full bg-white bg-opacity-5 hover:bg-opacity-10 border border-white border-opacity-5 rounded-xl p-3 lg:p-4 transition-all">
+                    <a href="create_interface" class="block w-full bg-white bg-opacity-5 hover:bg-opacity-10 border border-white border-opacity-5 rounded-xl p-3 lg:p-4 transition-all">
                         <div class="flex items-center">
                             <div class="w-8 h-8 lg:w-10 lg:h-10 bg-green-500 bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
                                 <i class="fas fa-plus text-green-400"></i>
@@ -245,14 +313,14 @@
                         </div>
                     </a>
 
-                    <a href="port-forwarding.php" class="block w-full bg-white bg-opacity-5 hover:bg-opacity-10 border border-white border-opacity-5 rounded-xl p-3 lg:p-4 transition-all">
+                    <a href="wg_peers" class="block w-full bg-white bg-opacity-5 hover:bg-opacity-10 border border-white border-opacity-5 rounded-xl p-3 lg:p-4 transition-all">
                         <div class="flex items-center">
                             <div class="w-8 h-8 lg:w-10 lg:h-10 bg-blue-500 bg-opacity-10 rounded-lg flex items-center justify-center mr-3">
-                                <i class="fas fa-network-wired text-blue-400"></i>
+                                <i class="fas fa-user-friends text-blue-400"></i>
                             </div>
                             <div>
-                                <h3 class="font-medium text-white text-sm lg:text-base">Add a Peer</h3>
-                                <p class="text-xs lg:text-sm text-gray-400">Manage WireGuard peers</p>
+                                <h3 class="font-medium text-white text-sm lg:text-base">Manage Peers</h3>
+                                <p class="text-xs lg:text-sm text-gray-400">Add and manage WireGuard peers</p>
                             </div>
                         </div>
                     </a>
@@ -277,6 +345,11 @@
 
 
 <script>
+    // Function to switch between interfaces
+    function switchInterface(interfaceName) {
+        window.location.href = `dashboard?interface=${interfaceName}`;
+    }
+
     // Function to refresh system stats via AJAX
     function refresh() {
         location.reload();
@@ -295,10 +368,13 @@
             btn.style.opacity = '0.6';
         });
 
+        // Get current interface from selector
+        const currentInterface = document.getElementById('interfaceSelector').value;
+
         // Create form and submit
         const form = document.createElement('form');
         form.method = 'POST';
-        form.action = 'wg_status';
+        form.action = `wg_status?interface=${currentInterface}`;
         
         const actionInput = document.createElement('input');
         actionInput.type = 'hidden';
