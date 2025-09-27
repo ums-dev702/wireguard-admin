@@ -443,9 +443,11 @@ if (!$listen_port) $listen_port = 51820;
               </tr>
             </thead>
             <tbody>
-              <?php foreach ($rows as $row): ?>
+              <?php 
+              $no = 1;
+              foreach ($rows as $row): ?>
                 <tr>
-                  <td>#<?= htmlspecialchars($row['id']) ?></td>
+                  <td>#<?= $no++ ?></td>
                   <td><?= htmlspecialchars($row['iface_id']) ?></td>
                   <td><?= htmlspecialchars($row['name']) ?></td>
                   <td><?= htmlspecialchars($row['address']) ?></td>
