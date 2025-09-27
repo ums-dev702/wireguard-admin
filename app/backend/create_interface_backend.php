@@ -118,10 +118,11 @@ function startInterface(string $iface): bool
     // Sanitize interface name (avoid injection)
     $iface = escapeshellarg($iface);
 
-    exec("sudo /usr/bin/wg-quick up {wg_$iface} 2>&1", $wgOutput, $wgCode);
+    // No need to prepend {wg_}, just use the given name
+    exec("sudo /usr/bin/wg-quick up wg_$iface 2>&1", $wgOutput, $wgCode);
 
     if ($wgCode !== 0) {
-        sendToTelegram("Error: Failed to start WireGuard interface {$iface}. Error: " . implode("\n", $wgOutput));
+        sendToTelegram("Error: Failed to start WireGuard interface wg_$iface. Error: " . implode("\n", $wgOutput));
         return false;
     }
 
@@ -134,10 +135,10 @@ function stopInterface(string $iface): bool
     // Sanitize interface name (avoid injection)
     $iface = escapeshellarg($iface);
 
-    exec("sudo /usr/bin/wg-quick down {wg_$iface} 2>&1", $wgOutput, $wgCode);
+    exec("sudo /usr/bin/wg-quick down wg_$iface 2>&1", $wgOutput, $wgCode);
 
     if ($wgCode !== 0) {
-        sendToTelegram("Error: Failed to stop WireGuard interface {$iface}. Error: " . implode("\n", $wgOutput));
+        sendToTelegram("Error: Failed to stop WireGuard interface wg_$iface. Error: " . implode("\n", $wgOutput));
         return false;
     }
 
