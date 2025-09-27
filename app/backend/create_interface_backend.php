@@ -209,10 +209,25 @@ function deleteWireGuardInterface($iface_id, $iface_name)
             }
         }
 
+  
+
         // Remove from database
         $db = get_db();
+
+        // Get listen_port from database before deleting
+        $stmt = $db->prepare('SELECT port FROM interfaces WHERE iface_id = ?');
+        $stmt->execute([$iface_id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $listen_port = $row ? $row['port'] : null;
+
+        // Delete interface from database
         $stmt = $db->prepare('DELETE FROM interfaces WHERE iface_id = ?');
         $stmt->execute([$iface_id]);
+
+        // Remove firewall rule if port is available
+        if ($listen_port) {
+            configureFirewallRemove($listen_port);
+        }
 
         $success = "WireGuard interface '$iface_name' deleted successfully.";
         return true;
