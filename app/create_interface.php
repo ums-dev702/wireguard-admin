@@ -3,9 +3,8 @@ require_once __DIR__ . '/../includes/auth.php';
 require_once __DIR__ . '/../includes/header.php';
 
 $private_key = defined('WG_PRIVATE_KEY') ? WG_PRIVATE_KEY : '';
-$rand = rand(2, 254);
-$address = "10.0.0.$rand/24";
-$listen_port = find_free_port();
+$address = get_free_10_subnet_address();
+$listen_port = find_free_udp_port(20000, 60000);
 if (!$listen_port) $listen_port = 51820;
 
 ?>
