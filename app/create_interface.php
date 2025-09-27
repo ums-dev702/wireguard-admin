@@ -449,7 +449,8 @@ if (!$listen_port) $listen_port = 51820;
                 <tr>
                   <td>#<?= $no++ ?></td>
                   <td>
-                    <a href="wg_status.php?interface=<?= urlencode($row['iface_id']) ?>" style="color: var(--text-light); text-decoration: none;">
+                    <a href="wg_status?interface=<?= urlencode($row['iface_id']) ?>"
+                      style="color: blue; text-decoration: underline; cursor: pointer;">
                       <?= htmlspecialchars($row['name']) ?>
                     </a>
                   </td>
