@@ -2,15 +2,15 @@
 require_once __DIR__ . '/../includes/header.php'; 
 
 // Get current interface (from URL or default)
-$current_interface = $_GET['interface'] ?? WG_IFACE;
+$current_interface = $_GET['interface'] ?? "";
 
 // Function to get interface configuration details
 function getInterfaceConfig($interface) {
     $config = [
         'port' => 'N/A',
         'address' => 'N/A',
-        'subnet' => SUBNET, // fallback
-        'server_ip' => SERVER_IP // fallback
+        'subnet' => 'N/A', // fallback
+        'server_ip' => SERVER_IP
     ];
     
     // Try to get from database first
@@ -22,7 +22,7 @@ function getInterfaceConfig($interface) {
         
         if ($db_interface) {
             $config['port'] = $db_interface['port'] ?? 'N/A';
-            $config['address'] = $db_interface['address'] ?? 'N/A';
+            $config['subnet'] = $db_interface['address'] ?? 'N/A';
         }
     } catch (Exception $e) {
         error_log("Error fetching interface from database: " . $e->getMessage());
@@ -36,18 +36,6 @@ function getInterfaceConfig($interface) {
         // Extract ListenPort
         if (preg_match('/ListenPort\s*=\s*(\d+)/', $conf_content, $matches)) {
             $config['port'] = $matches[1];
-        }
-        
-        // Extract Address
-        if (preg_match('/Address\s*=\s*([^\r\n]+)/', $conf_content, $matches)) {
-            $config['address'] = trim($matches[1]);
-            // If it's a single IP, try to extract subnet
-            if (strpos($config['address'], '/') !== false) {
-                $parts = explode('/', $config['address']);
-                if (count($parts) >= 2) {
-                    $config['subnet'] = $parts[0] . '/' . $parts[1];
-                }
-            }
         }
     }
     
@@ -220,10 +208,6 @@ $interface_config = getInterfaceConfig($current_interface);
                             <div class="flex justify-between">
                                 <span class="text-xs text-gray-400">Port:</span>
                                 <span class="text-xs text-white font-mono"><?= htmlspecialchars($interface_config['port']) ?></span>
-                            </div>
-                            <div class="flex justify-between">
-                                <span class="text-xs text-gray-400">Address:</span>
-                                <span class="text-xs text-white font-mono"><?= htmlspecialchars($interface_config['address']) ?></span>
                             </div>
                             <div class="flex justify-between">
                                 <span class="text-xs text-gray-400">Subnet:</span>

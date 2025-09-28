@@ -29,7 +29,7 @@ function get_db()
 
 function get_wg_status()
 {
-    $cmd = 'sudo wg show ' . WG_IFACE . ' 2>&1';
+    $cmd = 'sudo wg show  wg_acs 2>&1';
     $output = shell_exec($cmd);
     // Log output for debugging (optional, comment out if not needed)
     // file_put_contents(__DIR__ . '/../logs/wg_status.log', date('Y-m-d H:i:s') . "\n$cmd\n$output\n\n", FILE_APPEND);
@@ -39,49 +39,9 @@ function get_wg_status()
     return $output;
 }
 
-function get_wg_peers()
-{
-    $output = shell_exec('sudo wg show ' . WG_IFACE . ' peers');
-    $peers = explode("\n", trim($output));
-    $result = [];
 
-    foreach ($peers as $peer) {
-        if (!empty($peer)) {
-            $result[] = [
-                'public_key' => $peer,
-                'allowed_ips' => shell_exec("sudo wg show " . WG_IFACE . " allowed-ips $peer"),
-                'transfer' => shell_exec("sudo wg show " . WG_IFACE . " transfer | grep $peer")
-            ];
-        }
-    }
 
-    return $result;
-}
 
-function add_wg_peer($allowed_ips)
-{
-    $private_key = shell_exec('wg genkey');
-    $public_key = shell_exec("echo '$private_key' | wg pubkey");
-
-    $config = "\n[Peer]\nPublicKey = $public_key\nAllowedIPs = $allowed_ips\n";
-    file_put_contents(WG_CONF_PATH, $config, FILE_APPEND);
-
-    shell_exec('sudo wg-quick down ' . WG_IFACE . ' && sudo wg-quick up ' . WG_IFACE);
-    return [
-        'private_key' => trim($private_key),
-        'public_key' => trim($public_key)
-    ];
-}
-
-function remove_wg_peer($public_key)
-{
-    $config = file_get_contents(WG_CONF_PATH);
-    $escaped_key = preg_quote(trim($public_key), '/');
-    $new_config = preg_replace("/\[Peer\][^\[]*?PublicKey = {$escaped_key}[^\[]*/s", '', $config);
-    file_put_contents(WG_CONF_PATH, $new_config);
-    shell_exec("sudo wg set " . WG_IFACE . " peer $public_key remove");
-    return true;
-}
 
 function get_port_rules()
 {

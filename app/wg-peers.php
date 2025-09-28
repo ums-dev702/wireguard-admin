@@ -3,11 +3,11 @@ require_once __DIR__ . '/../includes/header.php';
 
 // Get available interfaces
 $available_interfaces = get_available_interfaces();
-$current_interface = $_GET['interface'] ?? WG_IFACE;
+$current_interface = $_GET['interface'] ?? "";
 
 // Validate interface name (security check)
 if (!in_array($current_interface, $available_interfaces)) {
-    $current_interface = WG_IFACE;
+    $current_interface = "";
 }
 
 $success_message = '';

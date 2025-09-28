@@ -263,6 +263,17 @@ function editWireGuardInterface($iface_id, $iface_name, $new_address, $new_port)
                 $error = "Failed to update configuration file.";
                 return false;
             }
+            //if port has bing changed, update firewall rules
+            // Get old port from database
+            $stmt = $db->prepare('SELECT port FROM interfaces WHERE iface_id = ?');
+            $stmt->execute([$iface_id]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            $old_port = $row ? $row['port'] : null;
+
+            if ($old_port && $old_port !== $new_port) {
+                configureFirewallRemove($old_port);
+                configureFirewall($new_port);
+            }
 
             // Restart interface to apply changes
             stopInterface($iface_name);
