@@ -6,13 +6,6 @@ require_once __DIR__ . '/../includes/functions.php';
 // Set JSON header
 header('Content-Type: application/json');
 
-// Check if user is authenticated
-if (!isset($_SESSION['user_authenticated']) || $_SESSION['user_authenticated'] !== true) {
-    http_response_code(401);
-    echo json_encode(['success' => false, 'error' => 'Unauthorized']);
-    exit;
-}
-
 // Get interface from query parameter
 $interface = $_GET['interface'] ?? '';
 
