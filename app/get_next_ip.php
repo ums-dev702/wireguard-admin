@@ -1,5 +1,5 @@
 <?php
-require_once __DIR__ . '/functions.php';
+require_once __DIR__ . '/../includes/functions.php';
 /**
  * AJAX endpoint to get the next available IP for an interface
  */
