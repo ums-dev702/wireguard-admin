@@ -7,10 +7,81 @@ class WireGuard {
     private $interfaceName;
     private $configPath;
 
-    public function __construct(Database $db, $interfaceName = 'wg_alvodata', $configPath = '/etc/wireguard/wg_alvodata.conf') {
+    public function __construct(Database $db, $interfaceName = null, $configPath = null) {
         $this->db = $db;
-        $this->interfaceName = $interfaceName;
-        $this->configPath = $configPath;
+        
+        // If no interface name provided, get the first interface from database
+        if ($interfaceName === null) {
+            try {
+                $firstInterface = $this->getFirstInterface();
+                if ($firstInterface) {
+                    $this->interfaceName = 'wg_' . $firstInterface['name'];
+                    $this->configPath = '/etc/wireguard/wg_' . $firstInterface['name'] . '.conf';
+                } else {
+                    // Default fallback if no interfaces exist
+                    $this->interfaceName = 'wg_alvodata';
+                    $this->configPath = '/etc/wireguard/wg_alvodata.conf';
+                }
+            } catch (\Exception $e) {
+                // Fallback to default if database query fails
+                error_log("Failed to get first interface, using default: " . $e->getMessage());
+                $this->interfaceName = 'wg_alvodata';
+                $this->configPath = '/etc/wireguard/wg_alvodata.conf';
+            }
+        } else {
+            $this->interfaceName = $interfaceName;
+            $this->configPath = $configPath ?: '/etc/wireguard/' . $interfaceName . '.conf';
+        }
+    }
+
+    /**
+     * Get the first interface from the database
+     * @return array|null Interface data or null if no interfaces exist
+     */
+    private function getFirstInterface() {
+        try {
+            $sql = "SELECT * FROM interfaces WHERE status = 'active' ORDER BY created_at ASC LIMIT 1";
+            $result = $this->db->select($sql);
+            return !empty($result) ? $result[0] : null;
+        } catch (\Exception $e) {
+            error_log("Failed to get first interface: " . $e->getMessage());
+            return null;
+        }
+    }
+
+    /**
+     * Get the current interface name
+     * @return string
+     */
+    public function getInterfaceName() {
+        return $this->interfaceName;
+    }
+
+    /**
+     * Get the current config path
+     * @return string
+     */
+    public function getConfigPath() {
+        return $this->configPath;
+    }
+
+    /**
+     * Refresh interface settings to use the first available interface
+     * @return bool True if interface was found and set, false otherwise
+     */
+    public function refreshInterface() {
+        try {
+            $firstInterface = $this->getFirstInterface();
+            if ($firstInterface) {
+                $this->interfaceName = 'wg_' . $firstInterface['name'];
+                $this->configPath = '/etc/wireguard/wg_' . $firstInterface['name'] . '.conf';
+                return true;
+            }
+            return false;
+        } catch (\Exception $e) {
+            error_log("Failed to refresh interface: " . $e->getMessage());
+            return false;
+        }
     }
 
     public function getStatus() {
