@@ -16,7 +16,7 @@ if (!isset($port_rules) || !is_array($port_rules)) {
 try {
     $db = new \WireGuardAdmin\Database();
     $auth = new \WireGuardAdmin\Auth($db, SESSION_TIMEOUT);
-    $wg = new \WireGuardAdmin\WireGuard($db, WG_IFACE);
+    $wg = new \WireGuardAdmin\WireGuard($db);
 
     // Check authentication
     $auth->requireAuth('/login.php');

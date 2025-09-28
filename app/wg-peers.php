@@ -17,18 +17,25 @@ function getNextAvailableIP($interface)
         $db = get_db();
 
         // Get interface subnet from database
-        $stmt = $db->prepare('SELECT address FROM  interfaces WHERE name = ? AND status = "active" LIMIT 1');
+        $stmt = $db->prepare('SELECT address FROM interfaces WHERE name = ? AND status = "active" LIMIT 1');
         $stmt->execute([$interface]);
         $interface_data = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        echo $interface_data['address'];
+        if (!$interface_data || empty($interface_data['address'])) {
+            throw new Exception("No active interface found for {$interface}");
+        }
 
-        // Extract base IP from interface address (e.g., 10.0.0.1/24 -> 10.0.0.)
-        $address_parts = explode('/', $interface_data['address']);
-        $ip_parts = explode('.', $address_parts[0]);
+        // Extract IP and CIDR from interface address (e.g., 10.0.0.1/24)
+        [$subnet_ip, $cidr] = explode('/', $interface_data['address']);
+        $ip_parts = explode('.', $subnet_ip);
+
+        if (count($ip_parts) !== 4) {
+            throw new Exception("Invalid interface IP format: {$subnet_ip}");
+        }
+
+        // Base IP prefix (e.g., "10.0.0.")
         $base_ip = $ip_parts[0] . '.' . $ip_parts[1] . '.' . $ip_parts[2] . '.';
-        $start = 2; // Start from .2 (skip .1 which is usually the interface)
-
+        $start = 2; // start from .2 (skip .1 which is usually the gateway/interface)
 
         // Get all used IPs from peers
         $used_ips = [];
@@ -37,14 +44,16 @@ function getNextAvailableIP($interface)
         $peers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
         foreach ($peers as $peer) {
-            if ($peer['allowed_ips']) {
-                // Extract IP from allowed_ips (e.g., 10.0.0.2/32 -> 10.0.0.2)
-                $ip_parts = explode('/', $peer['allowed_ips']);
-                $used_ips[] = $ip_parts[0];
+            if (!empty($peer['allowed_ips'])) {
+                // Extract only the IP part (e.g., 10.0.0.2/32 -> 10.0.0.2)
+                [$peer_ip] = explode('/', $peer['allowed_ips']);
+                if (strpos($peer_ip, $base_ip) === 0) {
+                    $used_ips[] = $peer_ip;
+                }
             }
         }
 
-        // Find next available IP
+        // Find next available IP in subnet range
         for ($i = $start; $i <= 254; $i++) {
             $test_ip = $base_ip . $i;
             if (!in_array($test_ip, $used_ips)) {
@@ -52,13 +61,14 @@ function getNextAvailableIP($interface)
             }
         }
 
-        // If no IP available, return a random one
-        return $base_ip . rand(100, 200) . '/32';
+        // If no IP available, return false instead of random
+        return false;
     } catch (Exception $e) {
-        // Fallback
-        return '10.0.0.' . rand(10, 100) . '/32';
+        error_log("getNextAvailableIP error: " . $e->getMessage());
+        return false;
     }
 }
+
 
 // Function to check if IP is already in use
 function isIPInUse($ip)
