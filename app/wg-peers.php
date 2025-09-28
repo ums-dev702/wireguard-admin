@@ -1,41 +1,118 @@
-<?php 
+<?php
 require_once __DIR__ . '/../includes/header.php';
 
 // Get available interfaces
 $available_interfaces = get_available_interfaces();
-$current_interface = $_GET['interface'] ?? "";
+$current_interface = $_GET['interface'] ?? '';
 
 // Validate interface name (security check)
 if (!in_array($current_interface, $available_interfaces)) {
-    $current_interface = "";
+    $current_interface = !empty($available_interfaces) ? $available_interfaces[0] : '';
+}
+
+// Function to get next available IP for an interface
+function getNextAvailableIP($interface) {
+    try {
+        $db = get_db();
+        
+        // Get interface subnet from database
+        $stmt = $db->prepare('SELECT address FROM interfaces WHERE name = ? AND status = "active" LIMIT 1');
+        $stmt->execute([$interface]);
+        $interface_data = $stmt->fetch(PDO::FETCH_ASSOC);
+        
+        if (!$interface_data || !$interface_data['address']) {
+            // Fallback to default subnet
+            $base_ip = '10.0.0.';
+            $start = 2;
+        } else {
+            // Extract base IP from interface address (e.g., 10.0.0.1/24 -> 10.0.0.)
+            $address_parts = explode('/', $interface_data['address']);
+            $ip_parts = explode('.', $address_parts[0]);
+            $base_ip = $ip_parts[0] . '.' . $ip_parts[1] . '.' . $ip_parts[2] . '.';
+            $start = 2; // Start from .2 (skip .1 which is usually the interface)
+        }
+        
+        // Get all used IPs from peers
+        $used_ips = [];
+        $stmt = $db->prepare('SELECT allowed_ips FROM peers WHERE status = "active"');
+        $stmt->execute();
+        $peers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        
+        foreach ($peers as $peer) {
+            if ($peer['allowed_ips']) {
+                // Extract IP from allowed_ips (e.g., 10.0.0.2/32 -> 10.0.0.2)
+                $ip_parts = explode('/', $peer['allowed_ips']);
+                $used_ips[] = $ip_parts[0];
+            }
+        }
+        
+        // Find next available IP
+        for ($i = $start; $i <= 254; $i++) {
+            $test_ip = $base_ip . $i;
+            if (!in_array($test_ip, $used_ips)) {
+                return $test_ip . '/32';
+            }
+        }
+        
+        // If no IP available, return a random one
+        return $base_ip . rand(100, 200) . '/32';
+        
+    } catch (Exception $e) {
+        // Fallback
+        return '10.0.0.' . rand(10, 100) . '/32';
+    }
+}
+
+// Function to check if IP is already in use
+function isIPInUse($ip) {
+    try {
+        $db = get_db();
+        $stmt = $db->prepare('SELECT COUNT(*) as count FROM peers WHERE allowed_ips = ? AND status = "active"');
+        $stmt->execute([$ip]);
+        $result = $stmt->fetch(PDO::FETCH_ASSOC);
+        return $result['count'] > 0;
+    } catch (Exception $e) {
+        return false;
+    }
 }
 
 $success_message = '';
 $error_message = '';
 
+// Check if interface is selected
+if (empty($current_interface)) {
+    $error_message = "Please select an interface first before managing peers.";
+}
+
 try {
     // Initialize WireGuard instance with selected interface
-    $wg_instance = new \WireGuardAdmin\WireGuard($db, $current_interface);
-    
+    if (!empty($current_interface)) {
+        $wg_instance = new \WireGuardAdmin\WireGuard($db, $current_interface);
+    }
+
     // Handle peer creation
-    if (isset($_POST['create_peer'])) {
+    if (isset($_POST['create_peer']) && !empty($current_interface)) {
         $peer_name = trim($_POST['peer_name'] ?? '');
         $allowed_ips = trim($_POST['allowed_ips'] ?? '');
-        $dns_servers = trim($_POST['dns_servers'] ?? '8.8.8.8,1.1.1.1');
+        $client_public_key = trim($_POST['client_public_key'] ?? '');
         $user_id = $currentUser['id'] ?? null;
 
-        if (empty($peer_name) || empty($allowed_ips)) {
-            $error_message = "Peer name and allowed IPs are required.";
+        if (empty($peer_name)) {
+            $error_message = "Peer name is required.";
+        } elseif (empty($allowed_ips)) {
+            $error_message = "Allowed IPs is required.";
+        } elseif (isIPInUse($allowed_ips)) {
+            $error_message = "IP address {$allowed_ips} is already in use by another peer.";
         } else {
             try {
-                $peer_data = $wg_instance->createPeer($peer_name, $allowed_ips, $dns_servers);
-                $success_message = "Peer '{$peer_name}' created successfully!";
-                
+                $peer_data = $wg_instance->createPeer($peer_name, $allowed_ips, '8.8.8.8,1.1.1.1', $client_public_key);
+                $success_message = "Peer '{$peer_name}' created successfully on interface {$current_interface}!";
+
                 // Log activity
                 $auth->logActivity(
-                    $user_id, 
-                    'CREATE_PEER', 
-                    "Created WireGuard peer: {$peer_name} on interface {$current_interface}",
+                    $user_id,
+                    'CREATE_PEER',
+                    "Created WireGuard peer: {$peer_name} ({$allowed_ips}) on interface {$current_interface}",
                     $_SERVER['REMOTE_ADDR'],
                     $_SERVER['HTTP_USER_AGENT']
                 );
@@ -43,10 +120,12 @@ try {
                 $error_message = "Failed to create peer: " . $e->getMessage();
             }
         }
+    } elseif (isset($_POST['create_peer']) && empty($current_interface)) {
+        $error_message = "Please select an interface before creating a peer.";
     }
 
     // Handle peer removal
-    if (isset($_POST['delete_peer'])) {
+    if (isset($_POST['delete_peer']) && !empty($current_interface)) {
         $peer_id = intval($_POST['peer_id']);
         $user_id = $currentUser['id'] ?? null;
 
@@ -54,13 +133,13 @@ try {
             $peer = $wg_instance->getPeer($peer_id);
             if ($peer) {
                 $wg_instance->deletePeer($peer_id);
-                $success_message = "Peer '{$peer['name']}' removed successfully!";
-                
+                $success_message = "Peer '{$peer['name']}' removed successfully from interface {$current_interface}!";
+
                 // Log activity
                 $auth->logActivity(
-                    $user_id, 
-                    'DELETE_PEER', 
-                    "Deleted WireGuard peer: {$peer['name']} on interface {$current_interface}",
+                    $user_id,
+                    'DELETE_PEER',
+                    "Deleted WireGuard peer: {$peer['name']} from interface {$current_interface}",
                     $_SERVER['REMOTE_ADDR'],
                     $_SERVER['HTTP_USER_AGENT']
                 );
@@ -73,10 +152,10 @@ try {
     }
 
     // Handle interface start/stop/restart
-    if (isset($_POST['interface_action'])) {
+    if (isset($_POST['interface_action']) && !empty($current_interface)) {
         $action = $_POST['interface_action'];
         $user_id = $currentUser['id'] ?? null;
-        
+
         try {
             $result = false;
             switch ($action) {
@@ -93,11 +172,11 @@ try {
                     $success_message = $result ? "Interface {$current_interface} restarted successfully!" : "Failed to restart interface.";
                     break;
             }
-            
+
             if ($result) {
                 $auth->logActivity(
-                    $user_id, 
-                    'INTERFACE_' . strtoupper($action), 
+                    $user_id,
+                    'INTERFACE_' . strtoupper($action),
                     "Interface {$current_interface} {$action}ed",
                     $_SERVER['REMOTE_ADDR'],
                     $_SERVER['HTTP_USER_AGENT']
@@ -109,10 +188,15 @@ try {
     }
 
     // Get interface status and peers
-    $interface_status = $wg_instance->getStatus();
-    $interface_running = $wg_instance->isRunning();
-    $peers = $wg_instance->getPeers();
-
+    if (!empty($current_interface)) {
+        $interface_status = $wg_instance->getStatus();
+        $interface_running = $wg_instance->isRunning();
+        $peers = $wg_instance->getPeers();
+    } else {
+        $interface_status = 'No interface selected';
+        $interface_running = false;
+        $peers = [];
+    }
 } catch (Exception $e) {
     $error_message = "Error initializing WireGuard interface: " . $e->getMessage();
     $interface_status = 'Error';
@@ -137,16 +221,16 @@ try {
                 </div>
             </div>
         </div>
-        
+
         <!-- Interface Selector -->
         <div class="flex flex-col sm:flex-row gap-3">
             <div class="flex items-center gap-2">
                 <label class="text-sm font-medium text-gray-300">Interface:</label>
                 <select onchange="changeInterface(this.value)" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-24">
                     <?php foreach ($available_interfaces as $iface): ?>
-                    <option value="<?= $iface ?>" <?= $iface === $current_interface ? 'selected' : '' ?>>
-                        <?= htmlspecialchars($iface) ?>
-                    </option>
+                        <option value="<?= $iface ?>" <?= $iface === $current_interface ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($iface) ?>
+                        </option>
                     <?php endforeach; ?>
                 </select>
             </div>
@@ -161,21 +245,21 @@ try {
 
     <!-- Success/Error Messages -->
     <?php if ($success_message): ?>
-    <div class="glass-card p-4 mb-6 border-l-4 border-green-500">
-        <div class="flex items-center">
-            <i class="fas fa-check-circle text-green-400 mr-3"></i>
-            <span class="text-green-400"><?= htmlspecialchars($success_message) ?></span>
+        <div class="glass-card p-4 mb-6 border-l-4 border-green-500">
+            <div class="flex items-center">
+                <i class="fas fa-check-circle text-green-400 mr-3"></i>
+                <span class="text-green-400"><?= htmlspecialchars($success_message) ?></span>
+            </div>
         </div>
-    </div>
     <?php endif; ?>
 
     <?php if ($error_message): ?>
-    <div class="glass-card p-4 mb-6 border-l-4 border-red-500">
-        <div class="flex items-center">
-            <i class="fas fa-exclamation-triangle text-red-400 mr-3"></i>
-            <span class="text-red-400"><?= htmlspecialchars($error_message) ?></span>
+        <div class="glass-card p-4 mb-6 border-l-4 border-red-500">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle text-red-400 mr-3"></i>
+                <span class="text-red-400"><?= htmlspecialchars($error_message) ?></span>
+            </div>
         </div>
-    </div>
     <?php endif; ?>
 
     <!-- Multi-Interface Overview -->
@@ -188,7 +272,7 @@ try {
                                          SUM(CASE WHEN status = "active" THEN 1 ELSE 0 END) as active
                                          FROM interfaces')->fetch(PDO::FETCH_ASSOC);
             $total_peers = count($peers); // Current interface peers
-            
+
             // Try to get total peers across all interfaces (if peer table exists)
             $all_peers = 0;
             try {
@@ -205,7 +289,7 @@ try {
             $all_peers = $total_peers;
         }
         ?>
-        
+
         <div class="glass-card p-4">
             <div class="flex items-center justify-between mb-2">
                 <div class="w-10 h-10 bg-blue-500 bg-opacity-10 rounded-lg flex items-center justify-center">
@@ -216,7 +300,7 @@ try {
             <h3 class="text-sm font-medium text-gray-400 mb-1">Total Interfaces</h3>
             <p class="text-xs text-gray-500">Configured</p>
         </div>
-        
+
         <div class="glass-card p-4">
             <div class="flex items-center justify-between mb-2">
                 <div class="w-10 h-10 bg-green-500 bg-opacity-10 rounded-lg flex items-center justify-center">
@@ -227,7 +311,7 @@ try {
             <h3 class="text-sm font-medium text-gray-400 mb-1">Active Interfaces</h3>
             <p class="text-xs text-gray-500">Running</p>
         </div>
-        
+
         <div class="glass-card p-4">
             <div class="flex items-center justify-between mb-2">
                 <div class="w-10 h-10 bg-purple-500 bg-opacity-10 rounded-lg flex items-center justify-center">
@@ -238,7 +322,7 @@ try {
             <h3 class="text-sm font-medium text-gray-400 mb-1">Total Peers</h3>
             <p class="text-xs text-gray-500">All interfaces</p>
         </div>
-        
+
         <div class="glass-card p-4">
             <div class="flex items-center justify-between mb-2">
                 <div class="w-10 h-10 bg-yellow-500 bg-opacity-10 rounded-lg flex items-center justify-center">
@@ -257,8 +341,8 @@ try {
             <div class="flex-1">
                 <h2 class="text-lg font-semibold text-white mb-2">
                     Interface Status: <?= htmlspecialchars($current_interface) ?>
-                    <a href="wg_status?interface=<?= urlencode($current_interface) ?>" 
-                       class="ml-2 text-sm text-blue-400 hover:text-blue-300">
+                    <a href="wg_status?interface=<?= urlencode($current_interface) ?>"
+                        class="ml-2 text-sm text-blue-400 hover:text-blue-300">
                         <i class="fas fa-external-link-alt"></i> View Details
                     </a>
                 </h2>
@@ -281,20 +365,20 @@ try {
                     </div>
                 </div>
             </div>
-            
+
             <!-- Interface Controls -->
             <div class="flex gap-2">
                 <form method="POST" class="inline">
                     <input type="hidden" name="interface_action" value="start">
-                    <button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors" 
-                            <?= $interface_running ? 'disabled' : '' ?>>
+                    <button type="submit" class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-sm transition-colors"
+                        <?= $interface_running ? 'disabled' : '' ?>>
                         <i class="fas fa-play mr-1"></i>Start
                     </button>
                 </form>
                 <form method="POST" class="inline">
                     <input type="hidden" name="interface_action" value="stop">
                     <button type="submit" class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-sm transition-colors"
-                            <?= !$interface_running ? 'disabled' : '' ?>>
+                        <?= !$interface_running ? 'disabled' : '' ?>>
                         <i class="fas fa-stop mr-1"></i>Stop
                     </button>
                 </form>
@@ -304,18 +388,18 @@ try {
                         <i class="fas fa-redo mr-1"></i>Restart
                     </button>
                 </form>
-                <a href="wg_status?interface=<?= urlencode($current_interface) ?>" 
-                   class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm transition-colors">
+                <a href="wg_status?interface=<?= urlencode($current_interface) ?>"
+                    class="px-3 py-1 bg-purple-600 hover:bg-purple-700 text-white rounded text-sm transition-colors">
                     <i class="fas fa-chart-line mr-1"></i>Monitor
                 </a>
             </div>
         </div>
-        
+
         <!-- Interface Details -->
         <?php if ($interface_running && $interface_status !== 'Error'): ?>
-        <div class="mt-4 p-3 bg-gray-800 rounded-lg">
-            <pre class="text-sm text-gray-300 overflow-x-auto"><?= htmlspecialchars($interface_status) ?></pre>
-        </div>
+            <div class="mt-4 p-3 bg-gray-800 rounded-lg">
+                <pre class="text-sm text-gray-300 overflow-x-auto"><?= htmlspecialchars($interface_status) ?></pre>
+            </div>
         <?php endif; ?>
     </div>
 
@@ -331,18 +415,18 @@ try {
                     <p class="text-sm text-gray-400 mt-1">
                         Managing peers for interface <?= htmlspecialchars($current_interface) ?>
                         <?php if (count($available_interfaces) > 1): ?>
-                        • <a href="#" onclick="showInterfaceSelector()" class="text-blue-400 hover:text-blue-300">
-                            Switch to other interface
-                        </a>
+                            • <a href="#" onclick="showInterfaceSelector()" class="text-blue-400 hover:text-blue-300">
+                                Switch to other interface
+                            </a>
                         <?php endif; ?>
                     </p>
                 </div>
                 <?php if (!empty($peers)): ?>
-                <div class="text-right">
-                    <button onclick="showCreatePeerModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm">
-                        <i class="fas fa-user-plus mr-2"></i>Add Another Peer
-                    </button>
-                </div>
+                    <div class="text-right">
+                        <button onclick="showCreatePeerModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors text-sm">
+                            <i class="fas fa-user-plus mr-2"></i>Add Another Peer
+                        </button>
+                    </div>
                 <?php endif; ?>
             </div>
         </div>
@@ -361,78 +445,78 @@ try {
                 </thead>
                 <tbody class="divide-y divide-gray-600">
                     <?php if (empty($peers)): ?>
-                    <tr>
-                        <td colspan="6" class="px-4 lg:px-6 py-8 text-center text-gray-400">
-                            <i class="fas fa-users-slash text-4xl mb-3 block"></i>
-                            <p class="text-lg mb-2">No peers configured</p>
-                            <p class="text-sm">Create your first VPN peer to get started.</p>
-                            <button onclick="showCreatePeerModal()" class="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                                <i class="fas fa-plus mr-2"></i>Add First Peer
-                            </button>
-                        </td>
-                    </tr>
+                        <tr>
+                            <td colspan="6" class="px-4 lg:px-6 py-8 text-center text-gray-400">
+                                <i class="fas fa-users-slash text-4xl mb-3 block"></i>
+                                <p class="text-lg mb-2">No peers configured</p>
+                                <p class="text-sm">Create your first VPN peer to get started.</p>
+                                <button onclick="showCreatePeerModal()" class="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                                    <i class="fas fa-plus mr-2"></i>Add First Peer
+                                </button>
+                            </td>
+                        </tr>
                     <?php else: ?>
-                    <?php foreach ($peers as $peer): ?>
-                    <tr class="hover:bg-gray-800/50 transition-colors">
-                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
-                            <div class="flex items-center">
-                                <div class="w-8 h-8 bg-blue-500 bg-opacity-10 rounded-full flex items-center justify-center mr-3">
-                                    <i class="fas fa-user text-blue-400 text-sm"></i>
-                                </div>
-                                <div>
-                                    <div class="text-sm font-medium text-white"><?= htmlspecialchars($peer['name'] ?? 'Unnamed') ?></div>
-                                    <div class="text-xs text-gray-400">ID: <?= $peer['id'] ?></div>
-                                </div>
-                            </div>
-                        </td>
-                        <td class="px-4 lg:px-6 py-4">
-                            <div class="text-sm text-gray-300 font-mono">
-                                <span title="<?= htmlspecialchars($peer['public_key']) ?>">
-                                    <?= htmlspecialchars(substr($peer['public_key'], 0, 20)) ?>...
-                                </span>
-                                <button onclick="copyToClipboard('<?= htmlspecialchars($peer['public_key']) ?>')" 
-                                        class="ml-2 text-gray-400 hover:text-white transition-colors">
-                                    <i class="fas fa-copy text-xs"></i>
-                                </button>
-                            </div>
-                        </td>
-                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-300">
-                            <?= htmlspecialchars($peer['allowed_ips'] ?? 'N/A') ?>
-                        </td>
-                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
-                            <?php 
-                            $status = $peer['status'] ?? 'active';
-                            $status_color = $status === 'active' ? 'green' : 'red';
-                            ?>
-                            <span class="px-2 py-1 rounded-full text-xs font-medium bg-<?= $status_color ?>-500 bg-opacity-10 text-<?= $status_color ?>-400">
-                                <?= ucfirst($status) ?>
-                            </span>
-                        </td>
-                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                            <?php if (isset($peer['created_at'])): ?>
-                                <?= date('M j, Y', strtotime($peer['created_at'])) ?>
-                            <?php else: ?>
-                                N/A
-                            <?php endif; ?>
-                        </td>
-                        <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm">
-                            <div class="flex justify-end gap-2">
-                                <button onclick="downloadConfig(<?= $peer['id'] ?>)" 
-                                        class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
-                                    <i class="fas fa-download mr-1"></i>Config
-                                </button>
-                                <button onclick="showQRCode(<?= $peer['id'] ?>)" 
-                                        class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors">
-                                    <i class="fas fa-qrcode mr-1"></i>QR
-                                </button>
-                                <button onclick="deletePeer(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['name'] ?? 'Unnamed', ENT_QUOTES) ?>')" 
-                                        class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors">
-                                    <i class="fas fa-trash mr-1"></i>Delete
-                                </button>
-                            </div>
-                        </td>
-                    </tr>
-                    <?php endforeach; ?>
+                        <?php foreach ($peers as $peer): ?>
+                            <tr class="hover:bg-gray-800/50 transition-colors">
+                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <div class="w-8 h-8 bg-blue-500 bg-opacity-10 rounded-full flex items-center justify-center mr-3">
+                                            <i class="fas fa-user text-blue-400 text-sm"></i>
+                                        </div>
+                                        <div>
+                                            <div class="text-sm font-medium text-white"><?= htmlspecialchars($peer['name'] ?? 'Unnamed') ?></div>
+                                            <div class="text-xs text-gray-400">ID: <?= $peer['id'] ?></div>
+                                        </div>
+                                    </div>
+                                </td>
+                                <td class="px-4 lg:px-6 py-4">
+                                    <div class="text-sm text-gray-300 font-mono">
+                                        <span title="<?= htmlspecialchars($peer['public_key']) ?>">
+                                            <?= htmlspecialchars(substr($peer['public_key'], 0, 20)) ?>...
+                                        </span>
+                                        <button onclick="copyToClipboard('<?= htmlspecialchars($peer['public_key']) ?>')"
+                                            class="ml-2 text-gray-400 hover:text-white transition-colors">
+                                            <i class="fas fa-copy text-xs"></i>
+                                        </button>
+                                    </div>
+                                </td>
+                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                    <?= htmlspecialchars($peer['allowed_ips'] ?? 'N/A') ?>
+                                </td>
+                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
+                                    <?php
+                                    $status = $peer['status'] ?? 'active';
+                                    $status_color = $status === 'active' ? 'green' : 'red';
+                                    ?>
+                                    <span class="px-2 py-1 rounded-full text-xs font-medium bg-<?= $status_color ?>-500 bg-opacity-10 text-<?= $status_color ?>-400">
+                                        <?= ucfirst($status) ?>
+                                    </span>
+                                </td>
+                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                                    <?php if (isset($peer['created_at'])): ?>
+                                        <?= date('M j, Y', strtotime($peer['created_at'])) ?>
+                                    <?php else: ?>
+                                        N/A
+                                    <?php endif; ?>
+                                </td>
+                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm">
+                                    <div class="flex justify-end gap-2">
+                                        <button onclick="downloadConfig(<?= $peer['id'] ?>)"
+                                            class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
+                                            <i class="fas fa-download mr-1"></i>Config
+                                        </button>
+                                        <button onclick="showQRCode(<?= $peer['id'] ?>)"
+                                            class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors">
+                                            <i class="fas fa-qrcode mr-1"></i>QR
+                                        </button>
+                                        <button onclick="deletePeer(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['name'] ?? 'Unnamed', ENT_QUOTES) ?>')"
+                                            class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors">
+                                            <i class="fas fa-trash mr-1"></i>Delete
+                                        </button>
+                                    </div>
+                                </td>
+                            </tr>
+                        <?php endforeach; ?>
                     <?php endif; ?>
                 </tbody>
             </table>
@@ -444,50 +528,67 @@ try {
 <div id="createPeerModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
     <div class="glass-card p-6 max-w-md w-full mx-4">
         <div class="flex justify-between items-center mb-4">
-            <h3 class="text-lg font-semibold text-white">Create New Peer</h3>
+            <div>
+                <h3 class="text-lg font-semibold text-white">Create New Peer</h3>
+                <p class="text-sm text-gray-400">Adding to interface: <span class="text-blue-400 font-medium"><?= htmlspecialchars($current_interface) ?></span></p>
+            </div>
             <button onclick="hideCreatePeerModal()" class="text-gray-400 hover:text-white">
                 <i class="fas fa-times"></i>
             </button>
         </div>
 
+        <?php if (empty($current_interface)): ?>
+        <div class="bg-red-500 bg-opacity-10 border border-red-500 rounded-lg p-4 mb-4">
+            <div class="flex items-center">
+                <i class="fas fa-exclamation-triangle text-red-400 mr-2"></i>
+                <span class="text-red-400 text-sm">Please select an interface first before creating a peer.</span>
+            </div>
+        </div>
+        <?php else: ?>
         <form method="POST" id="createPeerForm">
             <div class="space-y-4">
                 <div>
                     <label class="block text-sm font-medium text-gray-300 mb-2">Peer Name</label>
-                    <input type="text" name="peer_name" required 
-                           class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                           placeholder="e.g., John's Phone">
+                    <input type="text" name="peer_name" required
+                        class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                        placeholder="e.g., John's Phone">
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Allowed IPs</label>
-                    <input type="text" name="allowed_ips" required 
-                           class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                           placeholder="e.g., 10.0.0.2/32">
-                    <p class="text-xs text-gray-500 mt-1">IP address(es) this peer can use</p>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">
+                        Allowed IPs 
+                        <button type="button" onclick="generateNextIP()" class="ml-2 text-xs text-blue-400 hover:text-blue-300">
+                            <i class="fas fa-magic"></i> Auto-generate
+                        </button>
+                    </label>
+                    <input type="text" name="allowed_ips" required id="allowed_ips_input"
+                        class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                        placeholder="Loading next available IP..."
+                        value="<?= htmlspecialchars(getNextAvailableIP($current_interface)) ?>">
+                    <p class="text-xs text-gray-500 mt-1">IP address this peer can use (auto-generated from interface subnet)</p>
                 </div>
 
                 <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">DNS Servers</label>
-                    <input type="text" name="dns_servers" 
-                           class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                           value="8.8.8.8,1.1.1.1"
-                           placeholder="8.8.8.8,1.1.1.1">
-                    <p class="text-xs text-gray-500 mt-1">Comma-separated DNS servers</p>
+                    <label class="block text-sm font-medium text-gray-300 mb-2">Client / Mikrotik Public Key</label>
+                    <input type="text" name="client_public_key"
+                        class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                        placeholder="Optional: Paste existing public key">
+                    <p class="text-xs text-gray-500 mt-1">Leave empty to auto-generate a new key pair</p>
                 </div>
             </div>
 
             <div class="flex justify-end gap-3 mt-6">
-                <button type="button" onclick="hideCreatePeerModal()" 
-                        class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                <button type="button" onclick="hideCreatePeerModal()"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
                     Cancel
                 </button>
-                <button type="submit" name="create_peer" 
-                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                <button type="submit" name="create_peer"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
                     <i class="fas fa-plus mr-2"></i>Create Peer
                 </button>
             </div>
         </form>
+        <?php endif; ?>
     </div>
 </div>
 
@@ -498,125 +599,205 @@ try {
 </form>
 
 <script>
-function changeInterface(interfaceName) {
-    window.location.href = `?interface=${interfaceName}`;
-}
-
-function showInterfaceSelector() {
-    const selector = document.querySelector('select[onchange*="changeInterface"]');
-    if (selector) {
-        selector.focus();
-        // Optionally show a tooltip or highlight
-        selector.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.5)';
-        setTimeout(() => {
-            selector.style.boxShadow = '';
-        }, 2000);
+    function changeInterface(interfaceName) {
+        if (interfaceName) {
+            window.location.href = `?interface=${interfaceName}`;
+        } else {
+            alert('Please select a valid interface');
+        }
     }
-}
 
-function showCreatePeerModal() {
-    document.getElementById('createPeerModal').classList.remove('hidden');
-    // Auto-suggest next available IP
-    const allowedIpsInput = document.querySelector('input[name="allowed_ips"]');
-    if (allowedIpsInput && allowedIpsInput.value === '') {
-        suggestNextIP();
+    function showInterfaceSelector() {
+        const selector = document.querySelector('select[onchange*="changeInterface"]');
+        if (selector) {
+            selector.focus();
+            // Optionally show a tooltip or highlight
+            selector.style.boxShadow = '0 0 0 3px rgba(59, 130, 246, 0.5)';
+            setTimeout(() => {
+                selector.style.boxShadow = '';
+            }, 2000);
+        }
     }
-}
 
-function hideCreatePeerModal() {
-    document.getElementById('createPeerModal').classList.add('hidden');
-    document.getElementById('createPeerForm').reset();
-}
-
-function suggestNextIP() {
-    // This could be enhanced to actually check for the next available IP
-    // For now, just suggest a common pattern
-    const input = document.querySelector('input[name="allowed_ips"]');
-    if (input) {
-        // You could make an AJAX call here to get the next available IP
-        const baseIP = '10.0.0.';
-        const suggestedIP = baseIP + (Math.floor(Math.random() * 200) + 10) + '/32';
-        input.placeholder = `Suggested: ${suggestedIP}`;
+    function showCreatePeerModal() {
+        <?php if (empty($current_interface)): ?>
+        alert('Please select an interface first before creating a peer.');
+        return;
+        <?php endif; ?>
+        
+        document.getElementById('createPeerModal').classList.remove('hidden');
+        // Auto-generate next available IP when modal opens
+        generateNextIP();
     }
-}
 
-function deletePeer(peerId, peerName) {
-    if (confirm(`Are you sure you want to delete peer "${peerName}"?\n\nThis will:\n• Remove the peer from interface <?= htmlspecialchars($current_interface) ?>\n• Revoke access for this peer\n• Cannot be undone`)) {
-        document.getElementById('deletePeerId').value = peerId;
-        document.getElementById('deletePeerForm').submit();
+    function hideCreatePeerModal() {
+        document.getElementById('createPeerModal').classList.add('hidden');
+        document.getElementById('createPeerForm').reset();
     }
-}
 
-function copyToClipboard(text) {
-    navigator.clipboard.writeText(text).then(() => {
-        // Show temporary success message
-        const toast = document.createElement('div');
-        toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
-        toast.textContent = 'Copied to clipboard!';
-        document.body.appendChild(toast);
-        setTimeout(() => toast.remove(), 2000);
-    }).catch(() => {
-        // Fallback for older browsers
-        const textArea = document.createElement('textarea');
-        textArea.value = text;
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-        alert('Copied to clipboard!');
+    async function generateNextIP() {
+        const input = document.getElementById('allowed_ips_input');
+        if (!input) return;
+
+        // Show loading
+        input.value = 'Generating next available IP...';
+        input.disabled = true;
+
+        try {
+            // Make AJAX call to get next available IP
+            const response = await fetch('get_next_ip.php?interface=<?= urlencode($current_interface) ?>');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    input.value = data.ip;
+                } else {
+                    throw new Error(data.error || 'Failed to generate IP');
+                }
+            } else {
+                throw new Error('Server error');
+            }
+        } catch (error) {
+            console.error('Error generating IP:', error);
+            // Fallback to PHP-generated IP
+            input.value = '<?= htmlspecialchars(getNextAvailableIP($current_interface)) ?>';
+        } finally {
+            input.disabled = false;
+        }
+    }
+
+    function validateIP(ip) {
+        // Enhanced IP validation
+        const ipPattern = /^(?:(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){3}(?:25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)(?:\/(?:3[0-2]|[12]?[0-9]))?$/;
+        return ipPattern.test(ip);
+    }
+
+    async function checkIPAvailability(ip) {
+        try {
+            const response = await fetch('check_ip.php', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ip: ip})
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                return !data.inUse;
+            }
+        } catch (error) {
+            console.error('Error checking IP:', error);
+        }
+        return true; // Assume available if check fails
+    }
+
+    function deletePeer(peerId, peerName) {
+        if (confirm(`Are you sure you want to delete peer "${peerName}"?\n\nThis will:\n• Remove the peer from interface <?= htmlspecialchars($current_interface) ?>\n• Revoke access for this peer\n• Cannot be undone`)) {
+            document.getElementById('deletePeerId').value = peerId;
+            document.getElementById('deletePeerForm').submit();
+        }
+    }
+
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Show temporary success message
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            toast.textContent = 'Copied to clipboard!';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }).catch(() => {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert('Copied to clipboard!');
+        });
+    }
+
+    function downloadConfig(peerId) {
+        // This would generate and download the client config
+        window.open(`download-config.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`, '_blank');
+    }
+
+    function showQRCode(peerId) {
+        // This would show QR code for mobile scanning
+        window.open(`qr-code.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`, '_blank', 'width=400,height=400');
+    }
+
+    // Close modal when clicking outside
+    document.getElementById('createPeerModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideCreatePeerModal();
+        }
     });
-}
 
-function downloadConfig(peerId) {
-    // This would generate and download the client config
-    window.open(`download-config.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`, '_blank');
-}
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideCreatePeerModal();
+        }
+    });
 
-function showQRCode(peerId) {
-    // This would show QR code for mobile scanning
-    window.open(`qr-code.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`, '_blank', 'width=400,height=400');
-}
+    // Enhanced form validation
+    document.getElementById('createPeerForm').addEventListener('submit', async function(e) {
+        const peerName = document.querySelector('input[name="peer_name"]').value.trim();
+        const allowedIps = document.querySelector('input[name="allowed_ips"]').value.trim();
 
-// Close modal when clicking outside
-document.getElementById('createPeerModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        hideCreatePeerModal();
-    }
-});
-
-// Close modal with Escape key
-document.addEventListener('keydown', function(e) {
-    if (e.key === 'Escape') {
-        hideCreatePeerModal();
-    }
-});
-
-// Form validation
-document.getElementById('createPeerForm').addEventListener('submit', function(e) {
-    const peerName = document.querySelector('input[name="peer_name"]').value.trim();
-    const allowedIps = document.querySelector('input[name="allowed_ips"]').value.trim();
-    
-    if (!peerName) {
-        alert('Please enter a peer name.');
-        e.preventDefault();
-        return;
-    }
-    
-    if (!allowedIps) {
-        alert('Please enter allowed IPs for this peer.');
-        e.preventDefault();
-        return;
-    }
-    
-    // Basic IP validation
-    const ipPattern = /^(\d{1,3}\.){3}\d{1,3}(\/\d{1,2})?$/;
-    if (!ipPattern.test(allowedIps)) {
-        if (!confirm('The IP format might be incorrect. Continue anyway?')) {
+        if (!peerName) {
+            alert('Please enter a peer name.');
             e.preventDefault();
             return;
         }
-    }
-});
+
+        if (!allowedIps) {
+            alert('Please enter allowed IPs for this peer.');
+            e.preventDefault();
+            return;
+        }
+
+        // Validate IP format
+        if (!validateIP(allowedIps)) {
+            if (!confirm('The IP format appears to be incorrect. Continue anyway?')) {
+                e.preventDefault();
+                return;
+            }
+        }
+
+        // Check if IP is already in use
+        const isAvailable = await checkIPAvailability(allowedIps);
+        if (!isAvailable) {
+            alert('This IP address is already in use by another peer. Please choose a different IP or click "Auto-generate" for the next available IP.');
+            e.preventDefault();
+            return;
+        }
+
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalText = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
+        submitBtn.disabled = true;
+        
+        // Re-enable if form submission fails
+        setTimeout(() => {
+            submitBtn.innerHTML = originalText;
+            submitBtn.disabled = false;
+        }, 5000);
+    });
+
+    // Auto-generate IP when interface changes
+    <?php if (!empty($current_interface)): ?>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Pre-populate IP when page loads
+        const ipInput = document.getElementById('allowed_ips_input');
+        if (ipInput && ipInput.value === 'Loading next available IP...') {
+            generateNextIP();
+        }
+    });
+    <?php endif; ?>
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
