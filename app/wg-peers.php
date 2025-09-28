@@ -693,6 +693,7 @@ try {
             const response = await fetch('get_next_ip.php?interface=<?= urlencode($current_interface) ?>');
             if (response.ok) {
                 const data = await response.json();
+                console.log('Next IP response:', data);
                 if (data.success) {
                     input.value = data.ip;
                 } else {
