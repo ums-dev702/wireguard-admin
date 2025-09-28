@@ -4,8 +4,8 @@ require_once __DIR__ . '/../autoloader.php';
 require_once __DIR__ . '/functions.php';
 require_once __DIR__ . '/auth.php';
 if (!is_authenticated()) {
-  header('Location: login?error=Please+login to access+the dashboard');
-  exit;
+    header('Location: login?error=Please+login to access+the dashboard');
+    exit;
 }
 
 
@@ -39,12 +39,12 @@ try {
 
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+   <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
     <title>Dashboard - <?= APP_NAME ?></title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
-
+    <link rel="shortcut icon" href="img/logo.png" />
     <!-- Font Awesome for icons -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
 
@@ -497,26 +497,26 @@ try {
         </div>
 
 
-<?php if (isset($_GET['success'])): ?>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        Swal.fire({
-            icon: 'success',
-            title: 'Success!',
-            text: "<?= htmlspecialchars($_GET['success']) ?>",
-            confirmButtonColor: '#13b261'
-        });
-    </script>
-<?php endif; ?>
+        <?php if (isset($_GET['success'])): ?>
+            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+            <script>
+                Swal.fire({
+                    icon: 'success',
+                    title: 'Success!',
+                    text: "<?= htmlspecialchars($_GET['success']) ?>",
+                    confirmButtonColor: '#13b261'
+                });
+            </script>
+        <?php endif; ?>
 
-<?php if (isset($_GET['error'])): ?>
-    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-    <script>
-        Swal.fire({
-            icon: 'error',
-            title: 'Oops...',
-            text: "<?= htmlspecialchars($_GET['error']) ?>",
-            confirmButtonColor: '#f23635'
-        });
-    </script>
-<?php endif; ?>
+        <?php if (isset($_GET['error'])): ?>
+            <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+            <script>
+                Swal.fire({
+                    icon: 'error',
+                    title: 'Oops...',
+                    text: "<?= htmlspecialchars($_GET['error']) ?>",
+                    confirmButtonColor: '#f23635'
+                });
+            </script>
+        <?php endif; ?>

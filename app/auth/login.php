@@ -17,6 +17,7 @@ if ($auth->isAuthenticated()) {
     <title>Login - <?= APP_NAME ?></title>
     <link href="https://cdn.jsdelivr.net/npm/tailwindcss@2.2.19/dist/tailwind.min.css" rel="stylesheet">
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <link rel="shortcut icon" href="img/logo.png" />
     <style>
         .gradient-bg {
             background: linear-gradient(135deg, #000000 0%, #1a365d 100%);
