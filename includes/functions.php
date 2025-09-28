@@ -143,7 +143,7 @@ function get_available_interfaces(): array
 
     try {
         $db = get_db();
-        
+
         // First try with status column
         try {
             $stmt = $db->prepare('SELECT DISTINCT name FROM interfaces WHERE status = ?');
@@ -237,46 +237,57 @@ function is_ip_in_use(string $ip, float $tcpTimeout = 0.5): bool
 }
 
 /**
- * Generate a random free IP in 10.0.0.0/24
+ * Get a free private subnet gateway IP (x.x.x.1)
  *
- * @param int $min octet minimum (default 2)
- * @param int $max octet maximum (default 254)
- * @param int $maxAttempts cap on tries before giving up
- * @return string the address string like "10.0.0.123/24"
- * @throws RuntimeException if no free IP found within attempts
+ * Picks from 10.x, 172.16–31.x, or 192.168.x ranges.
+ *
+ * @param int $maxAttempts Max tries to find a free subnet
+ * @param string $cidr Subnet mask to append (default /24)
+ * @return string
+ * @throws RuntimeException
  */
-function get_free_10_subnet_address(int $min = 2, int $max = 254, int $maxAttempts = 200): string
+function get_free_private_subnet_address(int $maxAttempts = 200, string $cidr = '/24'): string
 {
-    if ($min < 1 || $max > 254 || $min >= $max) {
-        throw new InvalidArgumentException('Invalid min/max octet range.');
-    }
-
     $attempt = 0;
+
     do {
         $attempt++;
-        // use random_int for cryptographic randomness (and to avoid predictable rand())
-        $rand = random_int($min, $max);
-        $ip = "10.0.0.$rand";
+
+        // Pick a random private range
+        $range = random_int(1, 3);
+
+        if ($range === 1) {
+            // 10.x.0.1
+            $second = random_int(1, 254);
+            $ip = "10.$second.0.1";
+        } elseif ($range === 2) {
+            // 172.16–31.x.1
+            $second = random_int(16, 31);
+            $third  = random_int(0, 255);
+            $ip = "172.$second.$third.1";
+        } else {
+            // 192.168.x.1
+            $third = random_int(0, 255);
+            $ip = "192.168.$third.1";
+        }
 
         // Check if IP is in use
         $inUse = false;
         try {
-            $inUse = is_ip_in_use($ip);
+            $inUse = is_ip_in_use($ip); // implement this
         } catch (Throwable $e) {
-            // If the ping command or validation fails, treat as "in use" to be safe, but continue
-            // (you could also log $e->getMessage()).
+            error_log("IP check failed for $ip: " . $e->getMessage());
             $inUse = true;
         }
 
         if (!$inUse) {
-            return $ip . '/24';
+            return $ip . $cidr;
         }
-
-        // loop until free or attempts exhausted
     } while ($attempt < $maxAttempts);
 
-    throw new RuntimeException("Could not find a free IP in 10.0.0.0/24 after $maxAttempts attempts.");
+    throw new RuntimeException("Could not find a free private subnet after $maxAttempts attempts.");
 }
+
 
 
 /**

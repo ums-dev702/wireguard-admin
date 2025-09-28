@@ -36,23 +36,41 @@ function getNextAvailableIP($interface)
         $interface_data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$interface_data || empty($interface_data['address'])) {
-            // No interface found in database, use default subnet
-            error_log("No interface found for {$interface}, using default subnet");
-            $default_subnet = '10.0.0.1/24'; // Default VPN subnet
-            [$subnet_ip, $cidr] = explode('/', $default_subnet);
-        } else {
-            // Extract IP and CIDR from interface address (e.g., 10.0.0.1/24)
-            [$subnet_ip, $cidr] = explode('/', $interface_data['address']);
-        }
-        $ip_parts = explode('.', $subnet_ip);
-
-        if (count($ip_parts) !== 4) {
-            throw new Exception("Invalid interface IP format: {$subnet_ip}");
+            error_log("No interface found for {$interface}");
+            return false;
         }
 
-        // Base IP prefix (e.g., "10.0.0.")
-        $base_ip = $ip_parts[0] . '.' . $ip_parts[1] . '.' . $ip_parts[2] . '.';
-        $start = 2; // start from .2 (skip .1 which is usually the gateway/interface)
+        // Extract IP and CIDR from interface address (e.g., 10.0.0.1/24)
+        $address_parts = explode('/', $interface_data['address']);
+        if (count($address_parts) !== 2) {
+            throw new Exception("Invalid interface address format: {$interface_data['address']}");
+        }
+
+        $subnet_ip = $address_parts[0];
+        $cidr = intval($address_parts[1]);
+        
+        // Validate CIDR
+        if ($cidr < 8 || $cidr > 30) {
+            throw new Exception("Invalid CIDR: {$cidr}. Must be between 8 and 30.");
+        }
+
+        // Calculate network address and usable range
+        $ip_int = ip2long($subnet_ip);
+        if ($ip_int === false) {
+            throw new Exception("Invalid IP format: {$subnet_ip}");
+        }
+
+        // Calculate network mask and network address
+        $host_bits = 32 - $cidr;
+        $network_mask = ~((1 << $host_bits) - 1);
+        $network_int = $ip_int & $network_mask;
+        
+        // Calculate usable IP range (skip network and broadcast addresses)
+        $first_usable = $network_int + 1;
+        $last_usable = $network_int + (1 << $host_bits) - 2;
+        
+        // The interface IP itself should be skipped
+        $interface_ip_int = $ip_int;
 
         // Get all used IPs from peers
         $used_ips = [];
@@ -65,8 +83,9 @@ function getNextAvailableIP($interface)
                 if (!empty($peer['allowed_ips'])) {
                     // Extract only the IP part (e.g., 10.0.0.2/32 -> 10.0.0.2)
                     [$peer_ip] = explode('/', $peer['allowed_ips']);
-                    if (strpos($peer_ip, $base_ip) === 0) {
-                        $used_ips[] = $peer_ip;
+                    $peer_ip_int = ip2long($peer_ip);
+                    if ($peer_ip_int !== false && $peer_ip_int >= $first_usable && $peer_ip_int <= $last_usable) {
+                        $used_ips[] = $peer_ip_int;
                     }
                 }
             }
@@ -76,29 +95,24 @@ function getNextAvailableIP($interface)
             $used_ips = [];
         }
 
-        // Find next available IP in subnet range
-        for ($i = $start; $i <= 254; $i++) {
-            $test_ip = $base_ip . $i;
-            if (!in_array($test_ip, $used_ips)) {
-                return $test_ip . '/32';
+        // Find next available IP in the subnet range
+        for ($ip_int = $first_usable; $ip_int <= $last_usable; $ip_int++) {
+            // Skip the interface IP and already used IPs
+            if ($ip_int !== $interface_ip_int && !in_array($ip_int, $used_ips)) {
+                $next_ip = long2ip($ip_int);
+                if ($next_ip !== false) {
+                    return $next_ip . '/32';
+                }
             }
         }
 
-        // If no IP available in this subnet, try a fallback range
-        error_log("No available IPs in subnet {$base_ip}0/{$cidr}");
+        // If no IP available in this subnet
+        error_log("No available IPs in subnet {$subnet_ip}/{$cidr}");
         return false;
+        
     } catch (Exception $e) {
         error_log("getNextAvailableIP error: " . $e->getMessage());
-        // Return a reasonable fallback IP based on common VPN ranges
-        $fallback_ranges = ['10.0.0.', '192.168.1.', '172.16.0.'];
-        foreach ($fallback_ranges as $range) {
-            for ($i = 2; $i <= 10; $i++) {
-                $fallback_ip = $range . $i . '/32';
-                // We can't easily check if IP is in use here without the function, so just return first fallback
-                return $fallback_ip;
-            }
-        }
-        return '10.0.0.2/32'; // Ultimate fallback
+        return false;
     }
 }
 
