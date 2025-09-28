@@ -11,33 +11,31 @@ if (!in_array($current_interface, $available_interfaces)) {
 }
 
 // Function to get next available IP for an interface
-function getNextAvailableIP($interface) {
+function getNextAvailableIP($interface)
+{
     try {
         $db = get_db();
-        
+
         // Get interface subnet from database
-        $stmt = $db->prepare('SELECT address FROM interfaces WHERE name = ? AND status = "active" LIMIT 1');
+        $stmt = $db->prepare('SELECT address FROM  interfaces WHERE name = ? AND status = "active" LIMIT 1');
         $stmt->execute([$interface]);
         $interface_data = $stmt->fetch(PDO::FETCH_ASSOC);
-        
-        if (!$interface_data || !$interface_data['address']) {
-            // Fallback to default subnet
-            $base_ip = '10.0.0.';
-            $start = 2;
-        } else {
-            // Extract base IP from interface address (e.g., 10.0.0.1/24 -> 10.0.0.)
-            $address_parts = explode('/', $interface_data['address']);
-            $ip_parts = explode('.', $address_parts[0]);
-            $base_ip = $ip_parts[0] . '.' . $ip_parts[1] . '.' . $ip_parts[2] . '.';
-            $start = 2; // Start from .2 (skip .1 which is usually the interface)
-        }
-        
+
+        echo $interface_data['address'];
+
+        // Extract base IP from interface address (e.g., 10.0.0.1/24 -> 10.0.0.)
+        $address_parts = explode('/', $interface_data['address']);
+        $ip_parts = explode('.', $address_parts[0]);
+        $base_ip = $ip_parts[0] . '.' . $ip_parts[1] . '.' . $ip_parts[2] . '.';
+        $start = 2; // Start from .2 (skip .1 which is usually the interface)
+
+
         // Get all used IPs from peers
         $used_ips = [];
         $stmt = $db->prepare('SELECT allowed_ips FROM peers WHERE status = "active"');
         $stmt->execute();
         $peers = $stmt->fetchAll(PDO::FETCH_ASSOC);
-        
+
         foreach ($peers as $peer) {
             if ($peer['allowed_ips']) {
                 // Extract IP from allowed_ips (e.g., 10.0.0.2/32 -> 10.0.0.2)
@@ -45,7 +43,7 @@ function getNextAvailableIP($interface) {
                 $used_ips[] = $ip_parts[0];
             }
         }
-        
+
         // Find next available IP
         for ($i = $start; $i <= 254; $i++) {
             $test_ip = $base_ip . $i;
@@ -53,10 +51,9 @@ function getNextAvailableIP($interface) {
                 return $test_ip . '/32';
             }
         }
-        
+
         // If no IP available, return a random one
         return $base_ip . rand(100, 200) . '/32';
-        
     } catch (Exception $e) {
         // Fallback
         return '10.0.0.' . rand(10, 100) . '/32';
@@ -64,7 +61,8 @@ function getNextAvailableIP($interface) {
 }
 
 // Function to check if IP is already in use
-function isIPInUse($ip) {
+function isIPInUse($ip)
+{
     try {
         $db = get_db();
         $stmt = $db->prepare('SELECT COUNT(*) as count FROM peers WHERE allowed_ips = ? AND status = "active"');
@@ -538,56 +536,56 @@ try {
         </div>
 
         <?php if (empty($current_interface)): ?>
-        <div class="bg-red-500 bg-opacity-10 border border-red-500 rounded-lg p-4 mb-4">
-            <div class="flex items-center">
-                <i class="fas fa-exclamation-triangle text-red-400 mr-2"></i>
-                <span class="text-red-400 text-sm">Please select an interface first before creating a peer.</span>
+            <div class="bg-red-500 bg-opacity-10 border border-red-500 rounded-lg p-4 mb-4">
+                <div class="flex items-center">
+                    <i class="fas fa-exclamation-triangle text-red-400 mr-2"></i>
+                    <span class="text-red-400 text-sm">Please select an interface first before creating a peer.</span>
+                </div>
             </div>
-        </div>
         <?php else: ?>
-        <form method="POST" id="createPeerForm">
-            <div class="space-y-4">
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Peer Name</label>
-                    <input type="text" name="peer_name" required
-                        class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                        placeholder="e.g., John's Phone">
+            <form method="POST" id="createPeerForm">
+                <div class="space-y-4">
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Peer Name</label>
+                        <input type="text" name="peer_name" required
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                            placeholder="e.g., John's Phone">
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">
+                            Allowed IPs
+                            <button type="button" onclick="generateNextIP()" class="ml-2 text-xs text-blue-400 hover:text-blue-300">
+                                <i class="fas fa-magic"></i> Auto-generate
+                            </button>
+                        </label>
+                        <input type="text" name="allowed_ips" required id="allowed_ips_input"
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                            placeholder="Loading next available IP..."
+                            value="<?= htmlspecialchars(getNextAvailableIP($current_interface)) ?>">
+                        <p class="text-xs text-gray-500 mt-1">IP address this peer can use (auto-generated from interface subnet)</p>
+                    </div>
+
+                    <div>
+                        <label class="block text-sm font-medium text-gray-300 mb-2">Client / Mikrotik Public Key</label>
+                        <input type="text" name="client_public_key"
+                            class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                            placeholder="Optional: Paste existing public key">
+                        <p class="text-xs text-gray-500 mt-1">Leave empty to auto-generate a new key pair</p>
+                    </div>
                 </div>
 
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">
-                        Allowed IPs 
-                        <button type="button" onclick="generateNextIP()" class="ml-2 text-xs text-blue-400 hover:text-blue-300">
-                            <i class="fas fa-magic"></i> Auto-generate
-                        </button>
-                    </label>
-                    <input type="text" name="allowed_ips" required id="allowed_ips_input"
-                        class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                        placeholder="Loading next available IP..."
-                        value="<?= htmlspecialchars(getNextAvailableIP($current_interface)) ?>">
-                    <p class="text-xs text-gray-500 mt-1">IP address this peer can use (auto-generated from interface subnet)</p>
+                <div class="flex justify-end gap-3 mt-6">
+                    <button type="button" onclick="hideCreatePeerModal()"
+                        class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                        Cancel
+                    </button>
+                    <button type="submit" name="create_peer"
+                        class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                        <i class="fas fa-plus mr-2"></i>Create Peer
+                    </button>
                 </div>
-
-                <div>
-                    <label class="block text-sm font-medium text-gray-300 mb-2">Client / Mikrotik Public Key</label>
-                    <input type="text" name="client_public_key"
-                        class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                        placeholder="Optional: Paste existing public key">
-                    <p class="text-xs text-gray-500 mt-1">Leave empty to auto-generate a new key pair</p>
-                </div>
-            </div>
-
-            <div class="flex justify-end gap-3 mt-6">
-                <button type="button" onclick="hideCreatePeerModal()"
-                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
-                    Cancel
-                </button>
-                <button type="submit" name="create_peer"
-                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                    <i class="fas fa-plus mr-2"></i>Create Peer
-                </button>
-            </div>
-        </form>
+            </form>
         <?php endif; ?>
     </div>
 </div>
@@ -621,10 +619,10 @@ try {
 
     function showCreatePeerModal() {
         <?php if (empty($current_interface)): ?>
-        alert('Please select an interface first before creating a peer.');
-        return;
+            alert('Please select an interface first before creating a peer.');
+            return;
         <?php endif; ?>
-        
+
         document.getElementById('createPeerModal').classList.remove('hidden');
         // Auto-generate next available IP when modal opens
         generateNextIP();
@@ -678,9 +676,11 @@ try {
                 headers: {
                     'Content-Type': 'application/json',
                 },
-                body: JSON.stringify({ip: ip})
+                body: JSON.stringify({
+                    ip: ip
+                })
             });
-            
+
             if (response.ok) {
                 const data = await response.json();
                 return !data.inUse;
@@ -780,7 +780,7 @@ try {
         const originalText = submitBtn.innerHTML;
         submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Creating...';
         submitBtn.disabled = true;
-        
+
         // Re-enable if form submission fails
         setTimeout(() => {
             submitBtn.innerHTML = originalText;
@@ -790,13 +790,13 @@ try {
 
     // Auto-generate IP when interface changes
     <?php if (!empty($current_interface)): ?>
-    document.addEventListener('DOMContentLoaded', function() {
-        // Pre-populate IP when page loads
-        const ipInput = document.getElementById('allowed_ips_input');
-        if (ipInput && ipInput.value === 'Loading next available IP...') {
-            generateNextIP();
-        }
-    });
+        document.addEventListener('DOMContentLoaded', function() {
+            // Pre-populate IP when page loads
+            const ipInput = document.getElementById('allowed_ips_input');
+            if (ipInput && ipInput.value === 'Loading next available IP...') {
+                generateNextIP();
+            }
+        });
     <?php endif; ?>
 </script>
 
