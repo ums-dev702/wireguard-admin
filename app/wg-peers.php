@@ -690,7 +690,9 @@ try {
 
         try {
             // Make AJAX call to get next available IP
-            const response = await fetch('get_next_ip.php?interface=<?= urlencode($current_interface) ?>');
+            const api_url = window.location.origin + '/get_next_ip?interface=<?= urlencode($current_interface) ?>';
+            console.log('Fetching next IP from:', api_url);
+            const response = await fetch(api_url);
             if (response.ok) {
                 const data = await response.json();
                 console.log('Next IP response:', data);
