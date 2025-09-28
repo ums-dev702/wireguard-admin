@@ -1,11 +1,8 @@
 <?php
+require_once __DIR__ . '/functions.php';
 /**
  * AJAX endpoint to get the next available IP for an interface
  */
-require_once '../config.php';
-require_once '../includes/functions.php';
-require_once '../includes/auth.php';
-
 // Set JSON header
 header('Content-Type: application/json');
 
