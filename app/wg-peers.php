@@ -17,16 +17,20 @@ function getNextAvailableIP($interface)
         $db = get_db();
 
         // Get interface subnet from database
-        $stmt = $db->prepare('SELECT address FROM interfaces WHERE name = ? AND status = "active" LIMIT 1');
+        $stmt = $db->prepare('SELECT address FROM interfaces WHERE name = ? LIMIT 1');
         $stmt->execute([$interface]);
         $interface_data = $stmt->fetch(PDO::FETCH_ASSOC);
 
         if (!$interface_data || empty($interface_data['address'])) {
-            throw new Exception("No active interface found for {$interface}");
+            // No interface found in database, use default subnet
+            error_log("No interface found for {$interface}, using default subnet");
+            $default_subnet = '10.0.0.1/24'; // Default VPN subnet
+            [$subnet_ip, $cidr] = explode('/', $default_subnet);
+        } else {
+            // Extract IP and CIDR from interface address (e.g., 10.0.0.1/24)
+            [$subnet_ip, $cidr] = explode('/', $interface_data['address']);
         }
-
-        // Extract IP and CIDR from interface address (e.g., 10.0.0.1/24)
-        [$subnet_ip, $cidr] = explode('/', $interface_data['address']);
+        
         $ip_parts = explode('.', $subnet_ip);
 
         if (count($ip_parts) !== 4) {
@@ -39,18 +43,24 @@ function getNextAvailableIP($interface)
 
         // Get all used IPs from peers
         $used_ips = [];
-        $stmt = $db->prepare('SELECT allowed_ips FROM peers WHERE status = "active"');
-        $stmt->execute();
-        $peers = $stmt->fetchAll(PDO::FETCH_ASSOC);
+        try {
+            $stmt = $db->prepare('SELECT allowed_ips FROM peers WHERE status = "active"');
+            $stmt->execute();
+            $peers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-        foreach ($peers as $peer) {
-            if (!empty($peer['allowed_ips'])) {
-                // Extract only the IP part (e.g., 10.0.0.2/32 -> 10.0.0.2)
-                [$peer_ip] = explode('/', $peer['allowed_ips']);
-                if (strpos($peer_ip, $base_ip) === 0) {
-                    $used_ips[] = $peer_ip;
+            foreach ($peers as $peer) {
+                if (!empty($peer['allowed_ips'])) {
+                    // Extract only the IP part (e.g., 10.0.0.2/32 -> 10.0.0.2)
+                    [$peer_ip] = explode('/', $peer['allowed_ips']);
+                    if (strpos($peer_ip, $base_ip) === 0) {
+                        $used_ips[] = $peer_ip;
+                    }
                 }
             }
+        } catch (Exception $e) {
+            // If peers table doesn't exist or has different structure, continue with empty array
+            error_log("Error getting used IPs: " . $e->getMessage());
+            $used_ips = [];
         }
 
         // Find next available IP in subnet range
@@ -61,11 +71,22 @@ function getNextAvailableIP($interface)
             }
         }
 
-        // If no IP available, return false instead of random
+        // If no IP available in this subnet, try a fallback range
+        error_log("No available IPs in subnet {$base_ip}0/{$cidr}");
         return false;
     } catch (Exception $e) {
         error_log("getNextAvailableIP error: " . $e->getMessage());
-        return false;
+        // Return a reasonable fallback IP based on common VPN ranges
+        $fallback_ranges = ['10.0.0.', '192.168.1.', '172.16.0.'];
+        foreach ($fallback_ranges as $range) {
+            for ($i = 2; $i <= 10; $i++) {
+                $fallback_ip = $range . $i . '/32';
+                if (!isIPInUse($fallback_ip)) {
+                    return $fallback_ip;
+                }
+            }
+        }
+        return '10.0.0.2/32'; // Ultimate fallback
     }
 }
 
@@ -80,6 +101,7 @@ function isIPInUse($ip)
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return $result['count'] > 0;
     } catch (Exception $e) {
+        error_log("isIPInUse error: " . $e->getMessage());
         return false;
     }
 }
@@ -571,8 +593,11 @@ try {
                         </label>
                         <input type="text" name="allowed_ips" required id="allowed_ips_input"
                             class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                            placeholder="Loading next available IP..."
-                            value="<?= htmlspecialchars(getNextAvailableIP($current_interface)) ?>">
+                            placeholder="e.g., 10.0.0.2/32"
+                            value="<?php 
+                                $next_ip = getNextAvailableIP($current_interface);
+                                echo $next_ip ? htmlspecialchars($next_ip) : '';
+                            ?>">
                         <p class="text-xs text-gray-500 mt-1">IP address this peer can use (auto-generated from interface subnet)</p>
                     </div>
 
@@ -659,7 +684,9 @@ try {
                 if (data.success) {
                     input.value = data.ip;
                 } else {
-                    throw new Error(data.error || 'Failed to generate IP');
+                    // Use fallback IP if provided, otherwise use default
+                    input.value = data.fallback || '10.0.0.2/32';
+                    console.warn('IP generation failed:', data.error);
                 }
             } else {
                 throw new Error('Server error');
@@ -667,7 +694,11 @@ try {
         } catch (error) {
             console.error('Error generating IP:', error);
             // Fallback to PHP-generated IP
-            input.value = '<?= htmlspecialchars(getNextAvailableIP($current_interface)) ?>';
+            const fallbackIP = '<?php 
+                $next_ip = getNextAvailableIP($current_interface);
+                echo $next_ip ? htmlspecialchars($next_ip) : "10.0.0.2/32";
+            ?>';
+            input.value = fallbackIP;
         } finally {
             input.disabled = false;
         }

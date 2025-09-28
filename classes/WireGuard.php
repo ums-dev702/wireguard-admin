@@ -18,9 +18,10 @@ class WireGuard {
                     $this->interfaceName = 'wg_' . $firstInterface['name'];
                     $this->configPath = '/etc/wireguard/wg_' . $firstInterface['name'] . '.conf';
                 } else {
-                    // Default fallback if no interfaces exist
+                    // Default fallback if no interfaces exist - this should work even with no database entries
                     $this->interfaceName = 'wg_alvodata';
                     $this->configPath = '/etc/wireguard/wg_alvodata.conf';
+                    error_log("No interfaces found in database, using default interface: " . $this->interfaceName);
                 }
             } catch (\Exception $e) {
                 // Fallback to default if database query fails
@@ -40,12 +41,29 @@ class WireGuard {
      */
     private function getFirstInterface() {
         try {
+            // First try with status column
             $sql = "SELECT * FROM interfaces WHERE status = 'active' ORDER BY created_at ASC LIMIT 1";
+            $result = $this->db->select($sql);
+            if (!empty($result)) {
+                return $result[0];
+            }
+            
+            // If no active interfaces found, try without status filter
+            $sql = "SELECT * FROM interfaces ORDER BY created_at ASC LIMIT 1";
             $result = $this->db->select($sql);
             return !empty($result) ? $result[0] : null;
         } catch (\Exception $e) {
             error_log("Failed to get first interface: " . $e->getMessage());
-            return null;
+            
+            // If status column doesn't exist, try without it
+            try {
+                $sql = "SELECT * FROM interfaces ORDER BY created_at ASC LIMIT 1";
+                $result = $this->db->select($sql);
+                return !empty($result) ? $result[0] : null;
+            } catch (\Exception $e2) {
+                error_log("Failed to get any interface: " . $e2->getMessage());
+                return null;
+            }
         }
     }
 
@@ -147,7 +165,7 @@ class WireGuard {
                 'private_key' => $keyPair['private_key'],
                 'allowed_ips' => $allowedIps,
                 'endpoint' => $endpoint,
-                'dns' => $dns
+                'dns_servers' => $dns
             ]);
 
             // Add peer to WireGuard config
@@ -164,7 +182,7 @@ class WireGuard {
                 'private_key' => $keyPair['private_key'],
                 'public_key' => $keyPair['public_key'],
                 'allowed_ips' => $allowedIps,
-                'dns' => $dns,
+                'dns_servers' => $dns,
                 'endpoint' => $endpoint
             ];
             
@@ -192,7 +210,7 @@ class WireGuard {
             
             // Mark as inactive in database
             $this->db->update('peers', 
-                ['is_active' => 0], 
+                ['status' => 'inactive'], 
                 'id = ?', 
                 [$peerId]
             );
@@ -209,7 +227,7 @@ class WireGuard {
     public function getPeers($activeOnly = true) {
         $sql = "SELECT * FROM peers";
         if ($activeOnly) {
-            $sql .= " WHERE is_active = 1";
+            $sql .= " WHERE status = 'active'";
         }
         $sql .= " ORDER BY created_at DESC";
         
@@ -264,7 +282,7 @@ class WireGuard {
         $config = "[Interface]\n";
         $config .= "PrivateKey = {$peer['private_key']}\n";
         $config .= "Address = {$peer['allowed_ips']}\n";
-        $config .= "DNS = {$peer['dns']}\n\n";
+        $config .= "DNS = {$peer['dns_servers']}\n\n";
         $config .= "[Peer]\n";
         $config .= "PublicKey = {$serverPublicKey}\n";
         $config .= "Endpoint = {$serverEndpoint}:{$serverPort}\n";

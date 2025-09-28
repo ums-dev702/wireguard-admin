@@ -143,9 +143,19 @@ function get_available_interfaces(): array
 
     try {
         $db = get_db();
-        $stmt = $db->prepare('SELECT DISTINCT name FROM interfaces WHERE status = ?');
-        $stmt->execute(['active']);
-        $db_interfaces = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+        
+        // First try with status column
+        try {
+            $stmt = $db->prepare('SELECT DISTINCT name FROM interfaces WHERE status = ?');
+            $stmt->execute(['active']);
+            $db_interfaces = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+        } catch (Exception $e) {
+            // If status column doesn't exist, get all interfaces
+            error_log("Status column not found, getting all interfaces: " . $e->getMessage());
+            $stmt = $db->prepare('SELECT DISTINCT name FROM interfaces');
+            $stmt->execute();
+            $db_interfaces = $stmt->fetchAll(PDO::FETCH_COLUMN, 0);
+        }
 
         foreach ($db_interfaces as $db_interface) {
             if (!empty($db_interface)) {
