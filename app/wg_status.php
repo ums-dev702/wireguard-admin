@@ -4,11 +4,11 @@ require_once __DIR__ . '/../includes/header.php';
 // Get available interfaces
 $available_interfaces = get_available_interfaces();
 
-$current_interface = $_GET['interface'] ?? WG_IFACE;
+$current_interface = $_GET['interface'] ?? "NA";
 
 // Validate interface name (security check)
 if (!in_array($current_interface, $available_interfaces)) {
-    $current_interface = WG_IFACE;
+    $current_interface = "";
 }
 
 $success_message = '';
@@ -333,7 +333,7 @@ function formatBytes($bytes, $precision = 2) {
                 </div>
                 <div class="flex justify-between items-center p-3 bg-gray-800 rounded-lg">
                     <span class="text-sm font-medium text-gray-300">Subnet</span>
-                    <span class="text-sm text-white font-mono"><?= SUBNET ?></span>
+                    <span class="text-sm text-white font-mono"><?= $wg_details['address'] ?? 'N/A' ?></span>
                 </div>
             </div>
         </div>
