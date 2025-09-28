@@ -29,6 +29,7 @@ $routes = [
     '/wg_peers'        => 'wg-peers.php',
     '/wg_status'       => 'wg_status.php',
     '/logs'           => 'logs.php',
+    '/get_next_ip'    => 'get_next_ip.php',
 ];
 
 // Get request path (without query string)
