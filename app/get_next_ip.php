@@ -20,6 +20,9 @@ function getNextAvailableIP($interface)
     try {
         $db = get_db();
 
+        //remove wg_ prefix
+        $interface = preg_replace('/^wg_/', '', $interface);
+
         // Get interface subnet from database
         $stmt = $db->prepare('SELECT address FROM interfaces WHERE name = ? LIMIT 1');
         $stmt->execute([$interface]);
