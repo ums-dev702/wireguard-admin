@@ -225,17 +225,17 @@ class WireGuard {
     }
 
     public function getPeers($activeOnly = true) {
-        $sql = "SELECT * FROM peers";
-        if ($activeOnly) {
-            $sql .= " WHERE status = 'active'";
-        }
+        $sql = "SELECT * FROM wg_peers";
+        // if ($activeOnly) {
+        //     $sql .= " WHERE status = 'active'";
+        // }
         $sql .= " ORDER BY created_at DESC";
         
         return $this->db->select($sql);
     }
 
     public function getPeer($peerId) {
-        return $this->db->selectOne("SELECT * FROM peers WHERE id = ?", [$peerId]);
+        return $this->db->selectOne("SELECT * FROM wg_peers WHERE id = ?", [$peerId]);
     }
 
     public function updatePeerStats() {
@@ -259,10 +259,10 @@ class WireGuard {
                 $transferTx = intval($parts[6]);
                 
                 // Update in database
-                $this->db->update('peers', [
+                $this->db->update('wg_peers', [
                     'last_handshake' => $lastHandshake > 0 ? date('Y-m-d H:i:s', $lastHandshake) : null,
-                    'transfer_rx' => $transferRx,
-                    'transfer_tx' => $transferTx
+                    'rx_bytes' => $transferRx,
+                    'tx_bytes' => $transferTx
                 ], 'public_key = ?', [$publicKey]);
             }
             

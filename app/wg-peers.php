@@ -66,7 +66,7 @@ function getNextAvailableIP($interface)
         // Get all used IPs from peers
         $used_ips = [];
         try {
-            $stmt = $db->prepare('SELECT allowed_ips FROM wg_peers WHERE status = "active"');
+            $stmt = $db->prepare('SELECT allowed_ips FROM wg_peers');
             $stmt->execute();
             $peers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -112,7 +112,7 @@ function isIPInUse($ip)
 {
     try {
         $db = get_db();
-        $stmt = $db->prepare('SELECT COUNT(*) as count FROM wg_peers WHERE allowed_ips = ? AND status = "active"');
+        $stmt = $db->prepare('SELECT COUNT(*) as count FROM wg_peers WHERE allowed_ips = ?');
         $stmt->execute([$ip]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return $result['count'] > 0;
