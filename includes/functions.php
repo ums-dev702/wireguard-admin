@@ -109,6 +109,35 @@ function ensure_interfaces_table()
     }
 }
 
+
+function ensure_peers_table()
+{
+    $db = get_db(); // assumes get_db() returns a PDO connected to MySQL/MariaDB
+
+    try {
+        $sql = "CREATE TABLE IF NOT EXISTS wg_peers (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            peer_id VARCHAR(191) NOT NULL UNIQUE,
+            name VARCHAR(255) NOT NULL,
+            iface_id  VARCHAR(255) NOT NULL,
+            public_key TEXT NOT NULL,
+            allowed_ips TEXT NULL,
+            endpoint TEXT NULL,
+            status ENUM('active', 'inactive', 'unconfigured') DEFAULT 'unconfigured',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            last_handshake DATETIME NULL,
+            rx_bytes BIGINT UNSIGNED DEFAULT 0,
+            tx_bytes BIGINT UNSIGNED DEFAULT 0
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+
+        $db->exec($sql);
+    } catch (PDOException $e) {
+        // Log and rethrow or handle as appropriate
+        error_log('Error creating wg_peers table: ' . $e->getMessage());
+        throw $e;
+    }
+}
+
 /**
  * Send error message to Telegram bot
  */

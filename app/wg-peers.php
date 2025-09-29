@@ -1,6 +1,8 @@
 <?php
 require_once __DIR__ . '/../includes/header.php';
 
+ensure_peers_table();
+
 // Get available interfaces
 $available_interfaces = get_available_interfaces();
 $current_interface = $_GET['interface'] ?? '';
@@ -37,7 +39,7 @@ function getNextAvailableIP($interface)
 
         $subnet_ip = $address_parts[0];
         $cidr = intval($address_parts[1]);
-        
+
         // Validate CIDR
         if ($cidr < 8 || $cidr > 30) {
             throw new Exception("Invalid CIDR: {$cidr}. Must be between 8 and 30.");
@@ -53,18 +55,18 @@ function getNextAvailableIP($interface)
         $host_bits = 32 - $cidr;
         $network_mask = ~((1 << $host_bits) - 1);
         $network_int = $ip_int & $network_mask;
-        
+
         // Calculate usable IP range (skip network and broadcast addresses)
         $first_usable = $network_int + 1;
         $last_usable = $network_int + (1 << $host_bits) - 2;
-        
+
         // The interface IP itself should be skipped
         $interface_ip_int = $ip_int;
 
         // Get all used IPs from peers
         $used_ips = [];
         try {
-            $stmt = $db->prepare('SELECT allowed_ips FROM peers WHERE status = "active"');
+            $stmt = $db->prepare('SELECT allowed_ips FROM wg_peers WHERE status = "active"');
             $stmt->execute();
             $peers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
@@ -98,7 +100,6 @@ function getNextAvailableIP($interface)
         // If no IP available in this subnet
         error_log("No available IPs in subnet {$subnet_ip}/{$cidr}");
         return false;
-        
     } catch (Exception $e) {
         error_log("getNextAvailableIP error: " . $e->getMessage());
         return false;
@@ -111,7 +112,7 @@ function isIPInUse($ip)
 {
     try {
         $db = get_db();
-        $stmt = $db->prepare('SELECT COUNT(*) as count FROM peers WHERE allowed_ips = ? AND status = "active"');
+        $stmt = $db->prepare('SELECT COUNT(*) as count FROM wg_peers WHERE allowed_ips = ? AND status = "active"');
         $stmt->execute([$ip]);
         $result = $stmt->fetch(PDO::FETCH_ASSOC);
         return $result['count'] > 0;
@@ -134,68 +135,6 @@ try {
     if (!empty($current_interface)) {
         $wg_instance = new \WireGuardAdmin\WireGuard($db, $current_interface);
     }
-
-    // Handle peer creation
-    if (isset($_POST['create_peer']) && !empty($current_interface)) {
-        $peer_name = trim($_POST['peer_name'] ?? '');
-        $allowed_ips = trim($_POST['allowed_ips'] ?? '');
-        $client_public_key = trim($_POST['client_public_key'] ?? '');
-        $user_id = $currentUser['id'] ?? null;
-
-        if (empty($peer_name)) {
-            $error_message = "Peer name is required.";
-        } elseif (empty($allowed_ips)) {
-            $error_message = "Allowed IPs is required.";
-        } elseif (isIPInUse($allowed_ips)) {
-            $error_message = "IP address {$allowed_ips} is already in use by another peer.";
-        } else {
-            try {
-                $peer_data = $wg_instance->createPeer($peer_name, $allowed_ips, '8.8.8.8,1.1.1.1', $client_public_key);
-                $success_message = "Peer '{$peer_name}' created successfully on interface {$current_interface}!";
-
-                // Log activity
-                $auth->logActivity(
-                    $user_id,
-                    'CREATE_PEER',
-                    "Created WireGuard peer: {$peer_name} ({$allowed_ips}) on interface {$current_interface}",
-                    $_SERVER['REMOTE_ADDR'],
-                    $_SERVER['HTTP_USER_AGENT']
-                );
-            } catch (Exception $e) {
-                $error_message = "Failed to create peer: " . $e->getMessage();
-            }
-        }
-    } elseif (isset($_POST['create_peer']) && empty($current_interface)) {
-        $error_message = "Please select an interface before creating a peer.";
-    }
-
-    // Handle peer removal
-    if (isset($_POST['delete_peer']) && !empty($current_interface)) {
-        $peer_id = intval($_POST['peer_id']);
-        $user_id = $currentUser['id'] ?? null;
-
-        try {
-            $peer = $wg_instance->getPeer($peer_id);
-            if ($peer) {
-                $wg_instance->deletePeer($peer_id);
-                $success_message = "Peer '{$peer['name']}' removed successfully from interface {$current_interface}!";
-
-                // Log activity
-                $auth->logActivity(
-                    $user_id,
-                    'DELETE_PEER',
-                    "Deleted WireGuard peer: {$peer['name']} from interface {$current_interface}",
-                    $_SERVER['REMOTE_ADDR'],
-                    $_SERVER['HTTP_USER_AGENT']
-                );
-            } else {
-                $error_message = "Peer not found.";
-            }
-        } catch (Exception $e) {
-            $error_message = "Failed to remove peer: " . $e->getMessage();
-        }
-    }
-
     // Handle interface start/stop/restart
     if (isset($_POST['interface_action']) && !empty($current_interface)) {
         $action = $_POST['interface_action'];
@@ -321,7 +260,7 @@ try {
             // Try to get total peers across all interfaces (if peer table exists)
             $all_peers = 0;
             try {
-                $all_peers_result = $db->query('SELECT COUNT(*) as count FROM peers WHERE status = "active"');
+                $all_peers_result = $db->query('SELECT COUNT(*) as count FROM wg_peers WHERE status = "active"');
                 if ($all_peers_result) {
                     $all_peers = $all_peers_result->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
                 }
@@ -590,8 +529,9 @@ try {
                 </div>
             </div>
         <?php else: ?>
-            <form method="POST" id="createPeerForm">
+            <form method="POST" id="createPeerForm" action="/app/backend/wg_peer_backend.php" class="space-y-4">
                 <div class="space-y-4">
+                    <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-2">Peer Name</label>
                         <input type="text" name="peer_name" required
@@ -609,19 +549,11 @@ try {
                         <input type="text" name="allowed_ips" required id="allowed_ips_input"
                             class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
                             placeholder="e.g., 10.0.0.2/32"
-                            value="<?php 
-                                $next_ip = getNextAvailableIP($current_interface);
-                                echo $next_ip ? htmlspecialchars($next_ip) : '';
-                            ?>">
+                            value="<?php
+                                    $next_ip = getNextAvailableIP($current_interface);
+                                    echo $next_ip ? htmlspecialchars($next_ip) : '';
+                                    ?>">
                         <p class="text-xs text-gray-500 mt-1">IP address this peer can use (auto-generated from interface subnet)</p>
-                    </div>
-
-                    <div>
-                        <label class="block text-sm font-medium text-gray-300 mb-2">Client / Mikrotik Public Key</label>
-                        <input type="text" name="client_public_key"
-                            class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
-                            placeholder="Optional: Paste existing public key">
-                        <p class="text-xs text-gray-500 mt-1">Leave empty to auto-generate a new key pair</p>
                     </div>
                 </div>
 
@@ -712,10 +644,10 @@ try {
         } catch (error) {
             console.error('Error generating IP:', error);
             // Fallback to PHP-generated IP
-            const fallbackIP = '<?php 
-                $next_ip = getNextAvailableIP($current_interface);
-                echo $next_ip ? htmlspecialchars($next_ip) : "10.0.0.2/32";
-            ?>';
+            const fallbackIP = '<?php
+                                $next_ip = getNextAvailableIP($current_interface);
+                                echo $next_ip ? htmlspecialchars($next_ip) : "10.0.0.2/32";
+                                ?>';
             input.value = fallbackIP;
         } finally {
             input.disabled = false;
