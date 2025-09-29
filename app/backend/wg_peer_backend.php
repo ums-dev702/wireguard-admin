@@ -10,8 +10,13 @@ if (isset($_POST['create_peer'])) {
   $interface   = $_POST['interface'] ?? '';
   $allowed_ips = $_POST['allowed_ips'] ?? '';
 
+  //remove wg_ prefix if exists
+  if (strpos($interface, 'wg_') === 0) {
+    $actual_interface = substr($interface, 3);
+  }
+
   // get interface details
-  $interface_details = get_interface_details($interface);
+  $interface_details = get_interface_details($actual_interface);
   $iface_id = $interface_details['iface_id'] ?? '';
 
   if (!$interface_details) {
