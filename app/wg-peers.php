@@ -125,14 +125,6 @@ function isIPInUse($ip)
 $success_message = '';
 $error_message = '';
 
-// Handle success/error messages from URL parameters
-if (isset($_GET['success'])) {
-    $success_message = $_GET['success'];
-}
-if (isset($_GET['error'])) {
-    $error_message = $_GET['error'];
-}
-
 // Check if interface is selected
 if (empty($current_interface)) {
     $error_message = "Please select an interface first before managing peers.";
@@ -541,7 +533,7 @@ try {
                 </div>
             </div>
         <?php else: ?>
-            <form method="POST" id="createPeerForm" action="backend/wg_peer_backend.php" class="space-y-4">
+            <form method="POST" id="createPeerForm" action="/app/backend/wg_peer_backend.php" class="space-y-4">
                 <div class="space-y-4">
                     <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
                     <div>
@@ -585,9 +577,8 @@ try {
 </div>
 
 <!-- Delete Peer Form (hidden) -->
-<form id="deletePeerForm" method="POST" action="backend/wg_peer_backend.php" style="display: none;">
+<form id="deletePeerForm" method="POST" style="display: none;">
     <input type="hidden" name="delete_peer" value="1">
-    <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
     <input type="hidden" name="peer_id" id="deletePeerId">
 </form>
 
