@@ -455,15 +455,20 @@ try {
                                 </td>
                                 <td class="px-4 lg:px-6 py-4">
                                     <div class="text-sm text-gray-300 font-mono">
-                                        <span title="<?= htmlspecialchars($peer['public_key']) ?>">
-                                            <?= htmlspecialchars(substr($peer['public_key'], 0, 20)) ?>...
-                                        </span>
-                                        <button onclick="copyToClipboard('<?= htmlspecialchars($peer['public_key']) ?>')"
-                                            class="ml-2 text-gray-400 hover:text-white transition-colors">
-                                            <i class="fas fa-copy text-xs"></i>
-                                        </button>
+                                        <?php if (!empty($peer['public_key'])): ?>
+                                            <span title="<?= htmlspecialchars($peer['public_key']) ?>">
+                                                <?= htmlspecialchars(substr($peer['public_key'], 0, 20)) ?>...
+                                            </span>
+                                            <button onclick="copyToClipboard('<?= htmlspecialchars($peer['public_key']) ?>')"
+                                                class="ml-2 text-gray-400 hover:text-white transition-colors">
+                                                <i class="fas fa-copy text-xs"></i>
+                                            </button>
+                                        <?php else: ?>
+                                            <span class="text-gray-500 italic">No key available</span>
+                                        <?php endif; ?>
                                     </div>
                                 </td>
+
                                 <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-300">
                                     <?= htmlspecialchars($peer['allowed_ips'] ?? 'N/A') ?>
                                 </td>
