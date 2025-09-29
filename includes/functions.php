@@ -118,9 +118,9 @@ function ensure_peers_table()
         $sql = "CREATE TABLE IF NOT EXISTS wg_peers (
             id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
             peer_id VARCHAR(191) NOT NULL UNIQUE,
-            name VARCHAR(255) NOT NULL,
-            iface_id  VARCHAR(255) NOT NULL,
-            public_key TEXT NOT NULL,
+            name VARCHAR(255)  NULL,
+            iface_id  VARCHAR(255)  NULL,
+            public_key TEXT NULL,
             allowed_ips TEXT NULL,
             endpoint TEXT NULL,
             status ENUM('active', 'inactive', 'unconfigured') DEFAULT 'unconfigured',
