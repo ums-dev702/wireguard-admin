@@ -155,17 +155,31 @@ class WireGuard {
         try {
             $keyPair = $this->generateKeyPair();
             
+            // Get current interface name without wg_ prefix for database
+            $interface_name = preg_replace('/^wg_/', '', $this->interfaceName);
+            
+            // Generate unique peer ID
+            do {
+                $peer_id = "PWG" . rand(10000, 99999);
+                // Check if this ID already exists
+                $check_stmt = $this->db->selectOne('SELECT COUNT(*) as count FROM wg_peers WHERE peer_id = ?', [$peer_id]);
+                $exists = $check_stmt && $check_stmt['count'] > 0;
+            } while ($exists);
+            
             // Start transaction
             $this->db->beginTransaction();
             
-            // Insert peer into database
-            $peerId = $this->db->insert('peers', [
+            // Insert peer into wg_peers database
+            $peerId = $this->db->insert('wg_peers', [
+                'peer_id' => $peer_id,
                 'name' => $name,
+                'iface_id' => $interface_name,
                 'public_key' => $keyPair['public_key'],
                 'private_key' => $keyPair['private_key'],
                 'allowed_ips' => $allowedIps,
                 'endpoint' => $endpoint,
-                'dns_servers' => $dns
+                'dns_servers' => $dns,
+                'status' => 'active'
             ]);
 
             // Add peer to WireGuard config
@@ -178,11 +192,12 @@ class WireGuard {
             
             return [
                 'id' => $peerId,
+                'peer_id' => $peer_id,
                 'name' => $name,
                 'private_key' => $keyPair['private_key'],
                 'public_key' => $keyPair['public_key'],
                 'allowed_ips' => $allowedIps,
-                'dns_servers' => $dns,
+                'iface_id' => $interface_name,
                 'endpoint' => $endpoint
             ];
             
@@ -194,8 +209,8 @@ class WireGuard {
 
     public function deletePeer($peerId) {
         try {
-            // Get peer info
-            $peer = $this->db->selectOne("SELECT * FROM peers WHERE id = ?", [$peerId]);
+            // Get peer info from wg_peers table
+            $peer = $this->db->selectOne("SELECT * FROM wg_peers WHERE id = ?", [$peerId]);
             if (!$peer) {
                 throw new \Exception("Peer not found");
             }
@@ -209,7 +224,7 @@ class WireGuard {
             $this->removePeerFromConfig($peer['public_key']);
             
             // Mark as inactive in database
-            $this->db->update('peers', 
+            $this->db->update('wg_peers', 
                 ['status' => 'inactive'], 
                 'id = ?', 
                 [$peerId]
@@ -225,13 +240,23 @@ class WireGuard {
     }
 
     public function getPeers($activeOnly = true) {
-        $sql = "SELECT * FROM wg_peers";
-        // if ($activeOnly) {
-        //     $sql .= " WHERE status = 'active'";
-        // }
+        // Get current interface name without wg_ prefix for database lookup
+        $interface_name = preg_replace('/^wg_/', '', $this->interfaceName);
+        
+        $sql = "SELECT * FROM wg_peers WHERE iface_id = ?";
+        $params = [$interface_name];
+        
+        if ($activeOnly) {
+            $sql .= " AND status = 'active'";
+        }
         $sql .= " ORDER BY created_at DESC";
         
-        return $this->db->select($sql);
+        try {
+            return $this->db->select($sql, $params);
+        } catch (\Exception $e) {
+            error_log("Error getting peers for interface {$interface_name}: " . $e->getMessage());
+            return [];
+        }
     }
 
     public function getPeer($peerId) {
