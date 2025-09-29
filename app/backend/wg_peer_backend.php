@@ -76,12 +76,12 @@ if (isset($_POST['update_peer'])) {
 }
 
 
-function get_interface_details($interface_id)
+function get_interface_details($interface)
 {
   try {
     $db = get_db();
-    $stmt = $db->prepare('SELECT * FROM interfaces WHERE iface_id = ?');
-    $stmt->execute([$interface_id]);
+    $stmt = $db->prepare('SELECT * FROM interfaces WHERE name = ?');
+    $stmt->execute([$interface]);
     return $stmt->fetch(PDO::FETCH_ASSOC);
   } catch (Exception $e) {
     error_log("Error fetching interface details: " . $e->getMessage());
