@@ -239,17 +239,20 @@ class WireGuard {
         }
     }
 
-    public function getPeers($activeOnly = true) {
+    public function getPeers() {
         // Get current interface name without wg_ prefix for database lookup
         $interface_name = preg_replace('/^wg_/', '', $this->interfaceName);
          echo "SLECTING INTERFACE NAME: " . $interface_name . "\n";
+
+        //GET iface_id FROM interfaces WHERE name = $interface_name
+        $iface_id = $this->db->selectOne("SELECT iface_id FROM interfaces WHERE name = ?", [$interface_name]);
+        if (!$iface_id) {
+            error_log("No iface_id found for interface name: " . $interface_name);
+            return [];
+        }
         
         $sql = "SELECT * FROM wg_peers WHERE iface_id = ?";
-        $params = [$interface_name];
-        
-        if ($activeOnly) {
-            $sql .= " AND status = 'active'";
-        }
+        $params = [$iface_id];
         $sql .= " ORDER BY created_at DESC";
         
         try {
