@@ -552,6 +552,7 @@ try {
             <form method="POST" id="createPeerForm" action="app/backend/wg_peer_backend.php" class="space-y-4">
                 <div class="space-y-4">
                     <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
+                    <input type="hidden" name="user_id" value="<?= htmlspecialchars($currentUser['id'] ?? '') ?>">
                     <div>
                         <label class="block text-sm font-medium text-gray-300 mb-2">Peer Name</label>
                         <input type="text" name="peer_name" required

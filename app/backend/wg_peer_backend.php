@@ -4,11 +4,6 @@ require_once __DIR__ . '/../../autoloader.php';
 require_once __DIR__ . '/../../includes/functions.php';
 require_once __DIR__ . '/../../includes/auth.php';
 
-// Ensure user is authenticated
-if (!isset($_SESSION['user_authenticated']) || $_SESSION['user_authenticated'] !== true) {
-    header('Location: /login.php');
-    exit;
-}
 
 $db = new \WireGuardAdmin\Database();
 $auth = new \WireGuardAdmin\Auth($db, SESSION_TIMEOUT);
@@ -19,10 +14,8 @@ if (isset($_POST['create_peer'])) {
     $interface   = $_POST['interface'] ?? '';
     $allowed_ips = $_POST['allowed_ips'] ?? '';
     $user_id = $currentUser['id'] ?? null;
-
     // Remove wg_ prefix to get the actual interface name
     $actual_interface = preg_replace('/^wg_/', '', $interface);
-
     // Get interface details
     $interface_details = get_interface_details($actual_interface);
     $iface_id = $interface_details['iface_id'] ?? '';
@@ -35,12 +28,12 @@ if (isset($_POST['create_peer'])) {
     try {
         // Ensure tables exist
         ensure_peers_table();
-        
+
         // Initialize WireGuard instance with the full interface name (with wg_ prefix)
         $wg_instance = new \WireGuardAdmin\WireGuard($db, $interface);
         
         // Create the peer using WireGuard class
-        $peer_data = $wg_instance->createPeer($peer_name, $allowed_ips, '8.8.8.8,1.1.1.1');
+        $peer_data = $wg_instance->createPeer($peer_name, $iface_id, $allowed_ips);
         
         // Log activity
         if ($auth && $user_id) {

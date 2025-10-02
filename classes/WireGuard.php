@@ -152,25 +152,10 @@ class WireGuard
         return $this->startInterface();
     }
 
-    public function generateKeyPair()
-    {
-        $privateKey = trim(shell_exec('wg genkey'));
-        $publicKey = trim(shell_exec("echo '{$privateKey}' | wg pubkey"));
 
-        return [
-            'private_key' => $privateKey,
-            'public_key' => $publicKey
-        ];
-    }
-
-    public function createPeer($name, $allowedIps, $dns = '8.8.8.8', $endpoint = null)
+    public function createPeer($name,$iface_id, $allowedIps)
     {
         try {
-            $keyPair = $this->generateKeyPair();
-
-            // Get current interface name without wg_ prefix for database
-            $interface_name = preg_replace('/^wg_/', '', $this->interfaceName);
-
             // Generate unique peer ID
             do {
                 $peer_id = "PWG" . rand(10000, 99999);
@@ -178,40 +163,23 @@ class WireGuard
                 $check_stmt = $this->db->selectOne('SELECT COUNT(*) as count FROM wg_peers WHERE peer_id = ?', [$peer_id]);
                 $exists = $check_stmt && $check_stmt['count'] > 0;
             } while ($exists);
-
             // Start transaction
             $this->db->beginTransaction();
-
             // Insert peer into wg_peers database
             $peerId = $this->db->insert('wg_peers', [
                 'peer_id' => $peer_id,
                 'name' => $name,
-                'iface_id' => $interface_name,
-                'public_key' => $keyPair['public_key'],
-                'private_key' => $keyPair['private_key'],
+                'iface_id' => $iface_id,
                 'allowed_ips' => $allowedIps,
-                'endpoint' => $endpoint,
-                'dns_servers' => $dns,
-                'status' => 'active'
+                'status' => 'unconfigured'
             ]);
-
-            // Add peer to WireGuard config
-            $this->addPeerToConfig($keyPair['public_key'], $allowedIps);
-
-            // Restart interface to apply changes
-            $this->restartInterface();
-
             $this->db->commit();
-
             return [
                 'id' => $peerId,
                 'peer_id' => $peer_id,
                 'name' => $name,
-                'private_key' => $keyPair['private_key'],
-                'public_key' => $keyPair['public_key'],
                 'allowed_ips' => $allowedIps,
-                'iface_id' => $interface_name,
-                'endpoint' => $endpoint
+                'iface_id' => $iface_id
             ];
         } catch (\Exception $e) {
             $this->db->rollback();
