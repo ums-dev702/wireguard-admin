@@ -21,7 +21,7 @@ if (isset($_POST['create_peer'])) {
     $iface_id = $interface_details['iface_id'] ?? '';
 
     if (!$interface_details) {
-        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Invalid interface');
+        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Invalid interface');
         exit;
     }
 
@@ -46,11 +46,11 @@ if (isset($_POST['create_peer'])) {
             );
         }
 
-        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&success=Peer created successfully');
+        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&success=Peer created successfully');
         exit;
     } catch (Exception $e) {
         error_log("Error creating peer: " . $e->getMessage());
-        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Failed to create peer: ' . $e->getMessage());
+        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Failed to create peer: ' . $e->getMessage());
         exit;
     }
 }
@@ -68,7 +68,7 @@ if (isset($_POST['delete_peer'])) {
         $peer = $wg_instance->getPeer($peer_id);
         
         if (!$peer) {
-            header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Peer not found');
+            header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Peer not found');
             exit;
         }
         
@@ -86,11 +86,11 @@ if (isset($_POST['delete_peer'])) {
             );
         }
         
-        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&success=Peer deleted successfully');
+        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&success=Peer deleted successfully');
         exit;
     } catch (Exception $e) {
         error_log("Error deleting peer: " . $e->getMessage());
-        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Failed to delete peer: ' . $e->getMessage());
+        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Failed to delete peer: ' . $e->getMessage());
         exit;
     }
 }
