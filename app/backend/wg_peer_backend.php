@@ -95,6 +95,56 @@ if (isset($_POST['delete_peer'])) {
     }
 }
 
+// Handle public key update
+if (isset($_POST['edit_public_key'])) {
+    $peer_id = $_POST['peer_id'] ?? '';
+    $interface = $_POST['interface'] ?? '';
+    $public_key = trim($_POST['public_key'] ?? '');
+    $user_id = $currentUser['id'] ?? null;
+    
+    if (empty($peer_id) || empty($public_key)) {
+        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Peer ID and public key are required');
+        exit;
+    }
+    
+    try {
+        // Initialize WireGuard instance
+        $wg_instance = new \WireGuardAdmin\WireGuard($db, $interface);
+        
+        // Get peer info for logging
+        $peer = $wg_instance->getPeer($peer_id);
+        
+        if (!$peer) {
+            header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Peer not found');
+            exit;
+        }
+        
+        // Update the public key directly in the database
+        $db->update('wg_peers', [
+            'public_key' => $public_key,
+            'status' => 'active'  // Mark as active since it now has a key
+        ], 'id = ?', [$peer_id]);
+        
+        // Log activity
+        if ($auth && $user_id) {
+            $auth->logActivity(
+                $user_id,
+                'UPDATE_PEER_KEY',
+                "Updated public key for WireGuard peer: {$peer['name']} on interface {$interface}",
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                $_SERVER['HTTP_USER_AGENT'] ?? ''
+            );
+        }
+        
+        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&success=Public key updated successfully');
+        exit;
+    } catch (Exception $e) {
+        error_log("Error updating public key: " . $e->getMessage());
+        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Failed to update public key: ' . $e->getMessage());
+        exit;
+    }
+}
+
 if (isset($_POST['update_peer'])) {
   $peer_id = $_POST['peer_id'] ?? '';
   $interface = $_POST['interface'] ?? '';

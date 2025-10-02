@@ -478,8 +478,16 @@ try {
                                                 class="ml-2 text-gray-400 hover:text-white transition-colors">
                                                 <i class="fas fa-copy text-xs"></i>
                                             </button>
+                                            <button onclick="showEditKeyModal(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['public_key'], ENT_QUOTES) ?>', '<?= htmlspecialchars($peer['name'], ENT_QUOTES) ?>')"
+                                                class="ml-2 text-blue-400 hover:text-blue-300 transition-colors">
+                                                <i class="fas fa-edit text-xs"></i>
+                                            </button>
                                         <?php else: ?>
-                                            <span class="text-gray-500 italic">No key available</span>
+                                            <button onclick="showEditKeyModal(<?= $peer['id'] ?>, '', '<?= htmlspecialchars($peer['name'], ENT_QUOTES) ?>')"
+                                                class="text-yellow-400 hover:text-yellow-300 transition-colors">
+                                                <i class="fas fa-plus-circle mr-1"></i>
+                                                <span class="italic">Add public key</span>
+                                            </button>
                                         <?php endif; ?>
                                     </div>
                                 </td>
@@ -590,6 +598,65 @@ try {
                 </div>
             </form>
         <?php endif; ?>
+    </div>
+</div>
+
+<!-- Edit Public Key Modal -->
+<div id="editKeyModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="glass-card p-6 max-w-md w-full mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-lg font-semibold text-white">Edit Public Key</h3>
+                <p class="text-sm text-gray-400">Peer: <span id="editKeyPeerName" class="text-blue-400 font-medium"></span></p>
+            </div>
+            <button onclick="hideEditKeyModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form method="POST" id="editKeyForm" action="backend/wg_peer_backend.php" class="space-y-4">
+            <input type="hidden" name="edit_public_key" value="1">
+            <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
+            <input type="hidden" name="peer_id" id="editKeyPeerId">
+            
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Public Key
+                    <button type="button" onclick="generateNewKeyPair()" class="ml-2 text-xs text-blue-400 hover:text-blue-300">
+                        <i class="fas fa-key"></i> Generate New
+                    </button>
+                </label>
+                <textarea name="public_key" id="editKeyInput" required
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 font-mono text-sm"
+                    rows="3" placeholder="Paste the WireGuard public key here..."></textarea>
+                <p class="text-xs text-gray-500 mt-1">Enter the WireGuard public key for this peer. You can generate a new key pair or paste an existing one.</p>
+            </div>
+
+            <div id="privateKeySection" class="hidden">
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Private Key (for client config)
+                </label>
+                <textarea id="generatedPrivateKey" readonly
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white font-mono text-sm"
+                    rows="3" placeholder="Generated private key will appear here..."></textarea>
+                <button type="button" onclick="copyToClipboard(document.getElementById('generatedPrivateKey').value)"
+                    class="mt-2 text-xs text-blue-400 hover:text-blue-300">
+                    <i class="fas fa-copy mr-1"></i>Copy Private Key
+                </button>
+                <p class="text-xs text-gray-500 mt-1">Save this private key - it will be needed for the client configuration.</p>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" onclick="hideEditKeyModal()"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
+                    <i class="fas fa-save mr-2"></i>Save Key
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -748,10 +815,18 @@ try {
         }
     });
 
+    // Close Edit Key modal when clicking outside
+    document.getElementById('editKeyModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideEditKeyModal();
+        }
+    });
+
     // Close modal with Escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             hideCreatePeerModal();
+            hideEditKeyModal();
         }
     });
 
@@ -800,6 +875,56 @@ try {
             submitBtn.disabled = false;
         }, 5000);
     });
+
+    // Edit Key Modal Functions
+    function showEditKeyModal(peerId, currentKey, peerName) {
+        document.getElementById('editKeyPeerId').value = peerId;
+        document.getElementById('editKeyInput').value = currentKey || '';
+        document.getElementById('editKeyPeerName').textContent = peerName;
+        document.getElementById('editKeyModal').classList.remove('hidden');
+        
+        // Hide private key section initially
+        document.getElementById('privateKeySection').classList.add('hidden');
+    }
+
+    function hideEditKeyModal() {
+        document.getElementById('editKeyModal').classList.add('hidden');
+        document.getElementById('editKeyForm').reset();
+        document.getElementById('privateKeySection').classList.add('hidden');
+    }
+
+    async function generateNewKeyPair() {
+        try {
+            // Show loading state
+            const publicKeyInput = document.getElementById('editKeyInput');
+            const privateKeyInput = document.getElementById('generatedPrivateKey');
+            
+            publicKeyInput.value = 'Generating new key pair...';
+            publicKeyInput.disabled = true;
+            
+            // Make AJAX call to generate key pair
+            const response = await fetch('backend/generate_keypair.php');
+            if (response.ok) {
+                const data = await response.json();
+                if (data.success) {
+                    publicKeyInput.value = data.public_key;
+                    privateKeyInput.value = data.private_key;
+                    
+                    // Show the private key section
+                    document.getElementById('privateKeySection').classList.remove('hidden');
+                } else {
+                    throw new Error(data.error || 'Failed to generate key pair');
+                }
+            } else {
+                throw new Error('Server error');
+            }
+        } catch (error) {
+            console.error('Error generating key pair:', error);
+            alert('Failed to generate key pair: ' + error.message);
+        } finally {
+            document.getElementById('editKeyInput').disabled = false;
+        }
+    }
 
     // Auto-generate IP when interface changes
     <?php if (!empty($current_interface)): ?>
