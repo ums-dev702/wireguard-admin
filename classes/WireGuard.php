@@ -258,20 +258,13 @@ class WireGuard
         $interface_name = preg_replace('/^wg_/', '', $this->interfaceName);
 
         // Get iface_id from interfaces
-        $iface = $this->db->selectOne("SELECT iface_id FROM interfaces WHERE name = ?", [$interface_name]);
+        $iface = $this->db->selectOne('SELECT iface_id FROM interfaces WHERE name = ?', [$interface_name]);
 
-        if (!$iface || !isset($iface['iface_id'])) {
-            error_log("No iface_id found for interface name: " . $interface_name);
-            return [];
-        }
-
-        $sql = "SELECT * FROM wg_peers WHERE iface_id = ? ORDER BY created_at DESC";
-        $params = [$iface['iface_id']];
-
-        try {
-            return $this->db->select($sql, $params);
-        } catch (\Exception $e) {
-            error_log("Error getting peers for interface {$interface_name}: " . $e->getMessage());
+        if ($iface) {
+            $iface_id = $iface['iface_id'];
+            return $this->db->select("SELECT * FROM wg_peers WHERE iface_id = ? ORDER BY created_at DESC", [$iface_id]);
+        } else {
+            // If no matching interface found, return empty array
             return [];
         }
     }
