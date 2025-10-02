@@ -2,14 +2,16 @@
 
 namespace WireGuardAdmin;
 
-class WireGuard {
+class WireGuard
+{
     private $db;
     private $interfaceName;
     private $configPath;
 
-    public function __construct(Database $db, $interfaceName = null, $configPath = null) {
+    public function __construct(Database $db, $interfaceName = null, $configPath = null)
+    {
         $this->db = $db;
-        
+
         // If no interface name provided, get the first interface from database
         if ($interfaceName === null) {
             try {
@@ -39,7 +41,8 @@ class WireGuard {
      * Get the first interface from the database
      * @return array|null Interface data or null if no interfaces exist
      */
-    private function getFirstInterface() {
+    private function getFirstInterface()
+    {
         try {
             // First try with status column
             $sql = "SELECT * FROM interfaces WHERE status = 'active' ORDER BY created_at ASC LIMIT 1";
@@ -47,14 +50,14 @@ class WireGuard {
             if (!empty($result)) {
                 return $result[0];
             }
-            
+
             // If no active interfaces found, try without status filter
             $sql = "SELECT * FROM interfaces ORDER BY created_at ASC LIMIT 1";
             $result = $this->db->select($sql);
             return !empty($result) ? $result[0] : null;
         } catch (\Exception $e) {
             error_log("Failed to get first interface: " . $e->getMessage());
-            
+
             // If status column doesn't exist, try without it
             try {
                 $sql = "SELECT * FROM interfaces ORDER BY created_at ASC LIMIT 1";
@@ -71,7 +74,8 @@ class WireGuard {
      * Get the current interface name
      * @return string
      */
-    public function getInterfaceName() {
+    public function getInterfaceName()
+    {
         return $this->interfaceName;
     }
 
@@ -79,7 +83,8 @@ class WireGuard {
      * Get the current config path
      * @return string
      */
-    public function getConfigPath() {
+    public function getConfigPath()
+    {
         return $this->configPath;
     }
 
@@ -87,7 +92,8 @@ class WireGuard {
      * Refresh interface settings to use the first available interface
      * @return bool True if interface was found and set, false otherwise
      */
-    public function refreshInterface() {
+    public function refreshInterface()
+    {
         try {
             $firstInterface = $this->getFirstInterface();
             if ($firstInterface) {
@@ -102,7 +108,8 @@ class WireGuard {
         }
     }
 
-    public function getStatus() {
+    public function getStatus()
+    {
         try {
             $output = shell_exec("sudo wg show {$this->interfaceName} 2>/dev/null");
             return $output !== null ? trim($output) : 'Interface not running';
@@ -111,13 +118,15 @@ class WireGuard {
         }
     }
 
-    
-    public function isRunning() {
+
+    public function isRunning()
+    {
         $output = shell_exec("sudo wg show {$this->interfaceName} 2>/dev/null");
         return !empty($output);
     }
 
-    public function startInterface() {
+    public function startInterface()
+    {
         try {
             $output = shell_exec("sudo wg-quick up {$this->interfaceName} 2>&1");
             return strpos($output, 'FAILED') === false;
@@ -126,7 +135,8 @@ class WireGuard {
         }
     }
 
-    public function stopInterface() {
+    public function stopInterface()
+    {
         try {
             $output = shell_exec("sudo wg-quick down {$this->interfaceName} 2>&1");
             return true;
@@ -135,29 +145,32 @@ class WireGuard {
         }
     }
 
-    public function restartInterface() {
+    public function restartInterface()
+    {
         $this->stopInterface();
         sleep(2);
         return $this->startInterface();
     }
 
-    public function generateKeyPair() {
+    public function generateKeyPair()
+    {
         $privateKey = trim(shell_exec('wg genkey'));
         $publicKey = trim(shell_exec("echo '{$privateKey}' | wg pubkey"));
-        
+
         return [
             'private_key' => $privateKey,
             'public_key' => $publicKey
         ];
     }
 
-    public function createPeer($name, $allowedIps, $dns = '8.8.8.8', $endpoint = null) {
+    public function createPeer($name, $allowedIps, $dns = '8.8.8.8', $endpoint = null)
+    {
         try {
             $keyPair = $this->generateKeyPair();
-            
+
             // Get current interface name without wg_ prefix for database
             $interface_name = preg_replace('/^wg_/', '', $this->interfaceName);
-            
+
             // Generate unique peer ID
             do {
                 $peer_id = "PWG" . rand(10000, 99999);
@@ -165,10 +178,10 @@ class WireGuard {
                 $check_stmt = $this->db->selectOne('SELECT COUNT(*) as count FROM wg_peers WHERE peer_id = ?', [$peer_id]);
                 $exists = $check_stmt && $check_stmt['count'] > 0;
             } while ($exists);
-            
+
             // Start transaction
             $this->db->beginTransaction();
-            
+
             // Insert peer into wg_peers database
             $peerId = $this->db->insert('wg_peers', [
                 'peer_id' => $peer_id,
@@ -184,12 +197,12 @@ class WireGuard {
 
             // Add peer to WireGuard config
             $this->addPeerToConfig($keyPair['public_key'], $allowedIps);
-            
+
             // Restart interface to apply changes
             $this->restartInterface();
-            
+
             $this->db->commit();
-            
+
             return [
                 'id' => $peerId,
                 'peer_id' => $peer_id,
@@ -200,14 +213,14 @@ class WireGuard {
                 'iface_id' => $interface_name,
                 'endpoint' => $endpoint
             ];
-            
         } catch (\Exception $e) {
             $this->db->rollback();
             throw new \Exception("Failed to create peer: " . $e->getMessage());
         }
     }
 
-    public function deletePeer($peerId) {
+    public function deletePeer($peerId)
+    {
         try {
             // Get peer info from wg_peers table
             $peer = $this->db->selectOne("SELECT * FROM wg_peers WHERE id = ?", [$peerId]);
@@ -219,42 +232,42 @@ class WireGuard {
 
             // Remove from WireGuard
             shell_exec("sudo wg set {$this->interfaceName} peer {$peer['public_key']} remove");
-            
+
             // Remove from config file
             $this->removePeerFromConfig($peer['public_key']);
-            
+
             // Mark as inactive in database
-            $this->db->update('wg_peers', 
-                ['status' => 'inactive'], 
-                'id = ?', 
+            $this->db->update(
+                'wg_peers',
+                ['status' => 'inactive'],
+                'id = ?',
                 [$peerId]
             );
 
             $this->db->commit();
             return true;
-            
         } catch (\Exception $e) {
             $this->db->rollback();
             throw new \Exception("Failed to delete peer: " . $e->getMessage());
         }
     }
 
-    public function getPeers() {
+    public function getPeers()
+    {
         // Get current interface name without wg_ prefix for database lookup
         $interface_name = preg_replace('/^wg_/', '', $this->interfaceName);
-         echo "SLECTING INTERFACE NAME: " . $interface_name . "\n";
 
-        //GET iface_id FROM interfaces WHERE name = $interface_name
-        $iface_id = $this->db->selectOne("SELECT iface_id FROM interfaces WHERE name = ?", [$interface_name]);
-        if (!$iface_id) {
+        // Get iface_id from interfaces
+        $iface = $this->db->selectOne("SELECT iface_id FROM interfaces WHERE name = ?", [$interface_name]);
+
+        if (!$iface || !isset($iface['iface_id'])) {
             error_log("No iface_id found for interface name: " . $interface_name);
             return [];
         }
-        
-        $sql = "SELECT * FROM wg_peers WHERE iface_id = ?";
-        $params = [$iface_id];
-        $sql .= " ORDER BY created_at DESC";
-        
+
+        $sql = "SELECT * FROM wg_peers WHERE iface_id = ? ORDER BY created_at DESC";
+        $params = [$iface['iface_id']];
+
         try {
             return $this->db->select($sql, $params);
         } catch (\Exception $e) {
@@ -263,11 +276,14 @@ class WireGuard {
         }
     }
 
-    public function getPeer($peerId) {
+
+    public function getPeer($peerId)
+    {
         return $this->db->selectOne("SELECT * FROM wg_peers WHERE id = ?", [$peerId]);
     }
 
-    public function updatePeerStats() {
+    public function updatePeerStats()
+    {
         try {
             $output = shell_exec("sudo wg show {$this->interfaceName} dump");
             if (empty($output)) {
@@ -275,18 +291,18 @@ class WireGuard {
             }
 
             $lines = explode("\n", trim($output));
-            
+
             foreach ($lines as $line) {
                 if (empty($line)) continue;
-                
+
                 $parts = explode("\t", $line);
                 if (count($parts) < 6) continue;
-                
+
                 $publicKey = $parts[0];
                 $lastHandshake = $parts[4];
                 $transferRx = intval($parts[5]);
                 $transferTx = intval($parts[6]);
-                
+
                 // Update in database
                 $this->db->update('wg_peers', [
                     'last_handshake' => $lastHandshake > 0 ? date('Y-m-d H:i:s', $lastHandshake) : null,
@@ -294,7 +310,7 @@ class WireGuard {
                     'tx_bytes' => $transferTx
                 ], 'public_key = ?', [$publicKey]);
             }
-            
+
             return true;
         } catch (\Exception $e) {
             error_log("Failed to update peer stats: " . $e->getMessage());
@@ -302,7 +318,8 @@ class WireGuard {
         }
     }
 
-    public function generateClientConfig($peerId, $serverPublicKey, $serverEndpoint, $serverPort = 51820) {
+    public function generateClientConfig($peerId, $serverPublicKey, $serverEndpoint, $serverPort = 51820)
+    {
         $peer = $this->getPeer($peerId);
         if (!$peer) {
             throw new \Exception("Peer not found");
@@ -321,15 +338,17 @@ class WireGuard {
         return $config;
     }
 
-    private function addPeerToConfig($publicKey, $allowedIps) {
+    private function addPeerToConfig($publicKey, $allowedIps)
+    {
         $peerConfig = "\n[Peer]\n";
         $peerConfig .= "PublicKey = {$publicKey}\n";
         $peerConfig .= "AllowedIPs = {$allowedIps}\n";
-        
+
         file_put_contents($this->configPath, $peerConfig, FILE_APPEND | LOCK_EX);
     }
 
-    private function removePeerFromConfig($publicKey) {
+    private function removePeerFromConfig($publicKey)
+    {
         $config = file_get_contents($this->configPath);
         if ($config === false) {
             return false;
@@ -338,12 +357,13 @@ class WireGuard {
         // Remove the peer section
         $pattern = "/\n\[Peer\][^\[]*?PublicKey\s*=\s*" . preg_quote($publicKey, '/') . "[^\[]*/s";
         $newConfig = preg_replace($pattern, '', $config);
-        
+
         file_put_contents($this->configPath, $newConfig, LOCK_EX);
         return true;
     }
 
-    public function getSystemStats() {
+    public function getSystemStats()
+    {
         $stats = [];
         // System load (cross-platform)
         if (function_exists('sys_getloadavg')) {
@@ -368,7 +388,7 @@ class WireGuard {
             $memtotal = intval(preg_replace('/[^0-9]/', '', $meminfo[0])) * 1024;
             $memavailable = intval(preg_replace('/[^0-9]/', '', $meminfo[2])) * 1024;
             $memused = $memtotal - $memavailable;
-            
+
             $stats['memory'] = [
                 'total' => $memtotal,
                 'used' => $memused,
@@ -381,7 +401,7 @@ class WireGuard {
         $diskFree = disk_free_space("/");
         $diskTotal = disk_total_space("/");
         $diskUsed = $diskTotal - $diskFree;
-        
+
         $stats['disk'] = [
             'total' => $diskTotal,
             'used' => $diskUsed,
@@ -391,13 +411,14 @@ class WireGuard {
 
         // Network stats
         $stats['network'] = $this->getNetworkStats();
-        
+
         return $stats;
     }
 
-    private function getNetworkStats() {
+    private function getNetworkStats()
+    {
         $stats = [];
-        
+
         try {
             // Get interface statistics
             $output = shell_exec("cat /proc/net/dev | grep {$this->interfaceName}");
@@ -413,11 +434,12 @@ class WireGuard {
         } catch (\Exception $e) {
             error_log("Failed to get network stats: " . $e->getMessage());
         }
-        
+
         return $stats;
     }
 
-    public function formatBytes($bytes, $precision = 2) {
+    public function formatBytes($bytes, $precision = 2)
+    {
         $units = ['B', 'KB', 'MB', 'GB', 'TB'];
         $bytes = max($bytes, 0);
         $pow = $bytes > 0 ? floor(log($bytes) / log(1024)) : 0;
