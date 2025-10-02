@@ -241,7 +241,7 @@ class WireGuard {
 
     public function getPeers($activeOnly = true) {
         // Get current interface name without wg_ prefix for database lookup
-        $interface_name = preg_replace('/^wg_/', '', $this->interfaceName);
+        echo $interface_name = preg_replace('/^wg_/', '', $this->interfaceName);
         
         $sql = "SELECT * FROM wg_peers WHERE iface_id = ?";
         $params = [$interface_name];
