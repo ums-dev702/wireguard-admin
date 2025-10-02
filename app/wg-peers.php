@@ -260,7 +260,7 @@ try {
             // Try to get total peers across all interfaces (if peer table exists)
             $all_peers = 0;
             try {
-                $all_peers_result = $db->query('SELECT COUNT(*) as count FROM wg_peers WHERE status = "active"');
+                $all_peers_result = $db->query('SELECT COUNT(*) as count FROM wg_peers');
                 if ($all_peers_result) {
                     $all_peers = $all_peers_result->fetch(PDO::FETCH_ASSOC)['count'] ?? 0;
                 }
