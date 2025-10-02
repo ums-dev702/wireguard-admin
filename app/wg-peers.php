@@ -549,7 +549,7 @@ try {
                 </div>
             </div>
         <?php else: ?>
-            <form method="POST" id="createPeerForm" action="backend/wg_peer_backend.php" class="space-y-4">
+            <form method="POST" id="createPeerForm" action="app/backend/wg_peer_backend.php" class="space-y-4">
                 <div class="space-y-4">
                     <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
                     <div>
