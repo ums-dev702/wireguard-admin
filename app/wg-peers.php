@@ -289,6 +289,9 @@ try {
             <a href="create_interface" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm">
                 <i class="fas fa-plus mr-2"></i>New Interface
             </a>
+            <a href="port_forwarding.php" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-sm">
+                <i class="fas fa-network-wired mr-2"></i>Port Forwarding
+            </a>
             <button onclick="showCreatePeerModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
                 <i class="fas fa-user-plus mr-2"></i>Add Peer
             </button>
