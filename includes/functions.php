@@ -330,38 +330,209 @@ function get_free_private_subnet_address(int $maxAttempts = 200, string $cidr = 
  */
 function is_port_in_ufw(int $port): bool
 {
-    // Run ufw status (no paging). Note: may require root privileges depending on system setup.
-    // We avoid escape expansion issues by using escapeshellarg for the command's argument where needed.
-    $cmd = 'ufw status';
-    $output = null;
-    $ret = null;
+    try {
+        // Run ufw status (no paging). Note: may require root privileges depending on system setup.
+        $cmd = 'ufw status 2>/dev/null';
+        $raw = @shell_exec($cmd);
 
-    // Use shell_exec to capture full output (safer for multi-line)
-    $raw = @shell_exec($cmd . ' 2>/dev/null');
+        if ($raw === null || trim($raw) === '') {
+            // If ufw is not installed, disabled or command not allowed, assume no rule exists.
+            return false;
+        }
 
-    if ($raw === null || trim($raw) === '') {
-        // If ufw is not installed, disabled or command not allowed, assume no rule exists.
-        // You could also decide to throw or log here.
+        // Check if UFW is inactive
+        if (strpos($raw, 'Status: inactive') !== false) {
+            return false;
+        }
+
+        // Look for explicit "/udp" mentions first (most reliable)
+        if (preg_match('/\b' . preg_quote((string)$port, '/') . '\/udp\b/i', $raw)) {
+            return true;
+        }
+
+        // Some UFW outputs might show "Anywhere                   ALLOW IN    20000/udp" or the port in other columns,
+        // so also try a broader search for the port number (word boundary to reduce false positives).
+        if (preg_match('/\b' . preg_quote((string)$port, '/') . '\b/', $raw)) {
+            // Additional check to make sure it's actually a port rule and not just the port number appearing elsewhere
+            $lines = explode("\n", $raw);
+            foreach ($lines as $line) {
+                if (strpos($line, (string)$port) !== false && 
+                    (strpos($line, 'ALLOW') !== false || strpos($line, 'DENY') !== false)) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    } catch (Throwable $e) {
+        // If UFW check fails, log the error and assume port is not in UFW
+        error_log("Error checking UFW status for port $port: " . $e->getMessage());
         return false;
     }
+}
 
-    // Look for explicit "/udp" mentions first (most reliable)
-    if (preg_match('/\b' . preg_quote((string)$port, '/') . '\/udp\b/i', $raw)) {
+/**
+ * Check if a port is in use by port forwarding rules
+ *
+ * @param int $port Port number to check
+ * @return bool True if port is used in port forwarding, false otherwise
+ */
+function is_port_in_port_forwarding(int $port): bool
+{
+    try {
+        $output = shell_exec('sudo iptables -t nat -L PREROUTING -n --line-numbers 2>/dev/null');
+        
+        if ($output === null || trim($output) === '') {
+            // If iptables command fails or returns empty, assume no rules exist
+            // This might happen if iptables is not installed or user lacks permissions
+            return false;
+        }
+
+        $lines = explode("\n", $output);
+        
+        foreach ($lines as $line) {
+            // Look for lines that contain port forwarding rules with the specified port
+            // Example: "1    DNAT       tcp  --  0.0.0.0/0            0.0.0.0/0            tcp dpt:8080 to:10.0.0.5:80"
+            if (preg_match('/dpt:' . preg_quote((string)$port, '/') . '\b/', $line)) {
+                return true;
+            }
+            
+            // Also check for --dport format
+            if (preg_match('/--dport\s+' . preg_quote((string)$port, '/') . '\b/', $line)) {
+                return true;
+            }
+        }
+        
+        return false;
+    } catch (Throwable $e) {
+        // If checking port forwarding fails, be conservative and assume port is in use
+        error_log("Error checking port forwarding for port $port: " . $e->getMessage());
         return true;
     }
+}
 
-    // Some UFW outputs might show "Anywhere                   ALLOW IN    20000/udp" or the port in other columns,
-    // so also try a broader search for the port number (word boundary to reduce false positives).
-    if (preg_match('/\b' . preg_quote((string)$port, '/') . '\b/', $raw)) {
-        // It's possible the port might be mentioned in a different context; further filtering could be added.
-        return true;
+/**
+ * Validate if a specific port can be used for WireGuard
+ * Provides detailed feedback about why a port cannot be used
+ *
+ * @param int $port Port number to validate
+ * @return array Array with 'valid' (bool) and 'message' (string) keys
+ */
+function validate_wireguard_port(int $port): array
+{
+    if ($port < 1 || $port > 65535) {
+        return [
+            'valid' => false,
+            'message' => "Port $port is outside valid range (1-65535)"
+        ];
     }
 
-    return false;
+    // Check if port is bound by any process
+    $escapedPort = (int)$port;
+    $ssCmd = "ss -lun 2>/dev/null | awk '{print \$5}' | grep -w ':" . $escapedPort . "' | wc -l";
+    $ssOutput = @shell_exec($ssCmd);
+    $ssCount = 0;
+    if ($ssOutput !== null) {
+        $ssCount = (int) trim($ssOutput);
+    }
+
+    if ($ssCount > 0) {
+        return [
+            'valid' => false,
+            'message' => "Port $port is already in use by another process"
+        ];
+    }
+
+    // Check UFW rules
+    try {
+        if (is_port_in_ufw($port)) {
+            return [
+                'valid' => false,
+                'message' => "Port $port is already configured in UFW firewall rules"
+            ];
+        }
+    } catch (Throwable $e) {
+        return [
+            'valid' => false,
+            'message' => "Cannot check UFW rules for port $port: " . $e->getMessage()
+        ];
+    }
+
+    // Check port forwarding rules
+    if (is_port_in_port_forwarding($port)) {
+        return [
+            'valid' => false,
+            'message' => "Port $port is already used in port forwarding rules"
+        ];
+    }
+
+    // Try to bind the port as final verification
+    $sock = @stream_socket_server("udp://0.0.0.0:$port", $errno, $errstr, STREAM_SERVER_BIND);
+    if ($sock === false) {
+        return [
+            'valid' => false,
+            'message' => "Cannot bind to port $port: $errstr (Error: $errno)"
+        ];
+    }
+    
+    fclose($sock);
+    
+    return [
+        'valid' => true,
+        'message' => "Port $port is available for use"
+    ];
+}
+
+/**
+ * Comprehensive port availability check
+ * Checks if port is free from: socket binding, UFW rules, and port forwarding
+ *
+ * @param int $port Port number to check
+ * @return bool True if port is completely free, false if in use anywhere
+ */
+function is_port_completely_free(int $port): bool
+{
+    // 1) Check if port is bound by any process
+    $escapedPort = (int)$port;
+    $ssCmd = "ss -lun 2>/dev/null | awk '{print \$5}' | grep -w ':" . $escapedPort . "' | wc -l";
+    $ssOutput = @shell_exec($ssCmd);
+    $ssCount = 0;
+    if ($ssOutput !== null) {
+        $ssCount = (int) trim($ssOutput);
+    }
+
+    if ($ssCount > 0) {
+        return false; // Port is bound
+    }
+
+    // 2) Check UFW rules
+    try {
+        if (is_port_in_ufw($port)) {
+            return false; // Port exists in UFW rules
+        }
+    } catch (Throwable $e) {
+        error_log("Error checking UFW for port $port: " . $e->getMessage());
+        return false; // Be conservative if UFW check fails
+    }
+
+    // 3) Check port forwarding rules
+    if (is_port_in_port_forwarding($port)) {
+        return false; // Port is used in port forwarding
+    }
+
+    // 4) Try to bind the port as final verification
+    $sock = @stream_socket_server("udp://0.0.0.0:$port", $errno, $errstr, STREAM_SERVER_BIND);
+    if ($sock === false) {
+        return false; // Cannot bind port
+    }
+    
+    fclose($sock);
+    return true; // Port is completely free
 }
 
 /**
  * Find a free UDP port in the given range.
+ * Enhanced version that checks UFW, port forwarding, and socket binding
  *
  * @param int $start Starting port (inclusive)
  * @param int $end Ending port (inclusive)
@@ -375,44 +546,9 @@ function find_free_udp_port(int $start = 20000, int $end = 60000)
 
     // We'll iterate sequentially. If you prefer random picks, replace loop with random_int picks + attempts cap.
     for ($port = $start; $port <= $end; $port++) {
-        // 1) Quick check with ss to see if any process is bound to this port (UDP)
-        // The original approach: ss -lun | awk '{print $5}' | grep -w ':$port' | wc -l
-        // We'll keep similar but more defensive.
-        $escapedPort = (int)$port;
-        $ssCmd = "ss -lun 2>/dev/null | awk '{print \$5}' | grep -w ':" . $escapedPort . "' | wc -l";
-        $ssOutput = @shell_exec($ssCmd);
-        $ssCount = 0;
-        if ($ssOutput !== null) {
-            $ssCount = (int) trim($ssOutput);
-        }
-
-        if ($ssCount > 0) {
-            // Port is in use at the socket level; skip it
-            continue;
-        }
-
-        // 2) Check UFW rules for this port (so we don't accidentally pick a port that is already managed/opened)
-        try {
-            if (is_port_in_ufw($port)) {
-                // Port exists in UFW rules; skip.
-                continue;
-            }
-        } catch (Throwable $e) {
-            // If checking UFW fails for any reason, be conservative and skip this port.
-            // Optionally log $e->getMessage() if you have a logger.
-            continue;
-        }
-
-        // 3) Double-check by trying to bind the UDP port locally
-        // Use STREAM_SERVER_BIND to attempt binding. If successful, release and return port.
-        $sock = @stream_socket_server("udp://0.0.0.0:$port", $errno, $errstr, STREAM_SERVER_BIND);
-        if ($sock !== false) {
-            // Successfully bound => port is free for us to use
-            fclose($sock);
+        if (is_port_completely_free($port)) {
             return $port;
         }
-
-        // otherwise, binding failed — port not usable, continue scanning
     }
 
     // No free port found

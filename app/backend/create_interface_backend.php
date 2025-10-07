@@ -13,12 +13,19 @@ function createWireGuardInterface($iface, $private_key, $address, $listen_port)
     if (strlen($iface) > 8) {
         $error = "Interface name must not exceed 8 characters.";
         sendToTelegram("Error: " . $error);
-
         return false;
     }
 
     if (!$iface || !$private_key || !$address) {
         $error = "All required fields must be filled.";
+        sendToTelegram("Error: " . $error);
+        return false;
+    }
+
+    // Validate the listen port comprehensively
+    $portValidation = validate_wireguard_port((int)$listen_port);
+    if (!$portValidation['valid']) {
+        $error = "Port validation failed: " . $portValidation['message'];
         sendToTelegram("Error: " . $error);
         return false;
     }
@@ -75,8 +82,8 @@ function createWireGuardInterface($iface, $private_key, $address, $listen_port)
         $success_msg .= "Interface ID: $iface_id\n";
         $success_msg .= "Address: $address\n";
         $success_msg .= "Listen Port: $listen_port\n";
+        $success_msg .= "Port Status: " . $portValidation['message'] . "\n";
         $success_msg .= "===============================\n";
-
 
         sendToTelegram($success_msg);
         return $iface_id;
@@ -246,6 +253,22 @@ function editWireGuardInterface($iface_id, $iface_name, $new_address, $new_port)
     try {
         $db = get_db();
 
+        // Get current port to check if it's changing
+        $stmt = $db->prepare('SELECT port FROM interfaces WHERE iface_id = ?');
+        $stmt->execute([$iface_id]);
+        $row = $stmt->fetch(PDO::FETCH_ASSOC);
+        $current_port = $row ? $row['port'] : null;
+
+        // If port is changing, validate the new port
+        if ($current_port && $current_port != $new_port) {
+            $portValidation = validate_wireguard_port((int)$new_port);
+            if (!$portValidation['valid']) {
+                $error = "New port validation failed: " . $portValidation['message'];
+                sendToTelegram("Error: " . $error);
+                return false;
+            }
+        }
+
         // Update database
         $stmt = $db->prepare('UPDATE interfaces SET address = ?, port = ? WHERE iface_id = ?');
         $stmt->execute([$new_address, $new_port, $iface_id]);
@@ -263,16 +286,18 @@ function editWireGuardInterface($iface_id, $iface_name, $new_address, $new_port)
                 $error = "Failed to update configuration file.";
                 return false;
             }
-            //if port has bing changed, update firewall rules
-            // Get old port from database
-            $stmt = $db->prepare('SELECT port FROM interfaces WHERE iface_id = ?');
-            $stmt->execute([$iface_id]);
-            $row = $stmt->fetch(PDO::FETCH_ASSOC);
-            $old_port = $row ? $row['port'] : null;
 
-            if ($old_port && $old_port !== $new_port) {
-                configureFirewallRemove($old_port);
-                configureFirewall($new_port);
+            // If port has changed, update firewall rules
+            if ($current_port && $current_port !== $new_port) {
+                // Remove old firewall rule
+                configureFirewallRemove($current_port);
+                // Add new firewall rule
+                if (!configureFirewall($new_port)) {
+                    $error = "Failed to configure firewall for new port $new_port.";
+                    // Try to restore old rule
+                    configureFirewall($current_port);
+                    return false;
+                }
             }
 
             // Restart interface to apply changes
@@ -281,6 +306,20 @@ function editWireGuardInterface($iface_id, $iface_name, $new_address, $new_port)
         }
 
         $success = "WireGuard interface '$iface_name' updated successfully.";
+        
+        $success_msg = "===============================\n";
+        $success_msg .= "WireGuard Interface Updated\n";
+        $success_msg .= "===============================\n";
+        $success_msg .= "Interface Name: $iface_name\n";
+        $success_msg .= "Interface ID: $iface_id\n";
+        $success_msg .= "New Address: $new_address\n";
+        $success_msg .= "New Port: $new_port\n";
+        if ($current_port && $current_port !== $new_port) {
+            $success_msg .= "Port changed from: $current_port to $new_port\n";
+        }
+        $success_msg .= "===============================\n";
+        
+        sendToTelegram($success_msg);
         return true;
     } catch (Exception $e) {
         $error = "Failed to edit interface: " . $e->getMessage();

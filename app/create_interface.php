@@ -305,6 +305,40 @@ if (!$listen_port) $listen_port = 51820;
     font-size: 0.875rem;
   }
 
+  .text-success {
+    color: #10b981 !important;
+  }
+
+  .text-danger {
+    color: #dc2626 !important;
+  }
+
+  .port-validation {
+    margin-top: 0.5rem;
+    padding: 0.5rem;
+    border-radius: 0.375rem;
+    font-size: 0.875rem;
+    display: none;
+  }
+
+  .port-validation.success {
+    background: rgba(16, 185, 129, 0.1);
+    border-left: 3px solid #10b981;
+    color: #10b981;
+  }
+
+  .port-validation.error {
+    background: rgba(220, 38, 38, 0.1);
+    border-left: 3px solid #dc2626;
+    color: #dc2626;
+  }
+
+  .port-validation.checking {
+    background: rgba(148, 163, 184, 0.1);
+    border-left: 3px solid #94a3b8;
+    color: #94a3b8;
+  }
+
   .interface-link {
     display: inline-flex;
     align-items: center;
@@ -435,9 +469,15 @@ if (!$listen_port) $listen_port = 51820;
             <label class="form-label" for="listen_port">Listen Port</label>
             <div style="display: flex; gap: 0.5rem;">
               <input class="form-input" type="number" id="listen_port" name="listen_port"
-                placeholder="51820"
-                value="<?php echo htmlspecialchars($listen_port ?? '', ENT_QUOTES); ?>" style="flex: 1;">
+                placeholder="51820" min="1" max="65535"
+                value="<?php echo htmlspecialchars($listen_port ?? '', ENT_QUOTES); ?>" 
+                style="flex: 1;" onblur="validatePort(this.value)">
+              <button type="button" id="checkPortBtn" class="btn-secondary" onclick="checkPortAvailability()">
+                <i class="fas fa-search"></i> Check
+              </button>
             </div>
+            <div id="portValidationMessage" class="port-validation"></div>
+            <p class="text-muted">Port will be checked for conflicts with UFW and port forwarding rules</p>
           </div>
 
           <div class="form-group" style="margin-top: 2rem;">
@@ -475,8 +515,15 @@ if (!$listen_port) $listen_port = 51820;
 
           <div class="form-group">
             <label class="form-label" for="edit_port">Listen Port</label>
-            <input class="form-input" type="number" id="edit_port" name="port" required
-              placeholder="51820" min="1" max="65535">
+            <div style="display: flex; gap: 0.5rem;">
+              <input class="form-input" type="number" id="edit_port" name="port" required
+                placeholder="51820" min="1" max="65535" style="flex: 1;" onblur="validateEditPort(this.value)">
+              <button type="button" id="checkEditPortBtn" class="btn-secondary" onclick="checkEditPortAvailability()">
+                <i class="fas fa-search"></i> Check
+              </button>
+            </div>
+            <div id="editPortValidationMessage" class="port-validation"></div>
+            <p class="text-muted">Port will be checked for conflicts with UFW and port forwarding rules</p>
           </div>
 
           <div class="form-group" style="margin-top: 2rem;">
@@ -610,6 +657,81 @@ if (!$listen_port) $listen_port = 51820;
       document.getElementById('editModal').style.display = 'none';
     }
   });
+
+  // Port validation functions
+  function validatePort(port) {
+    if (!port || port < 1 || port > 65535) {
+      return;
+    }
+    
+    const messageDiv = document.getElementById('portValidationMessage');
+    messageDiv.style.display = 'block';
+    messageDiv.className = 'port-validation checking';
+    messageDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking port availability...';
+    
+    checkPortWithAjax(port, 'portValidationMessage');
+  }
+
+  function validateEditPort(port) {
+    if (!port || port < 1 || port > 65535) {
+      return;
+    }
+    
+    const messageDiv = document.getElementById('editPortValidationMessage');
+    messageDiv.style.display = 'block';
+    messageDiv.className = 'port-validation checking';
+    messageDiv.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Checking port availability...';
+    
+    checkPortWithAjax(port, 'editPortValidationMessage');
+  }
+
+  function checkPortAvailability() {
+    const port = document.getElementById('listen_port').value;
+    if (!port) {
+      alert('Please enter a port number first');
+      return;
+    }
+    validatePort(port);
+  }
+
+  function checkEditPortAvailability() {
+    const port = document.getElementById('edit_port').value;
+    if (!port) {
+      alert('Please enter a port number first');
+      return;
+    }
+    validateEditPort(port);
+  }
+
+  function checkPortWithAjax(port, targetDivId) {
+    fetch('app/backend/port_validator.php', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: 'port=' + encodeURIComponent(port)
+    })
+    .then(response => response.json())
+    .then(data => {
+      const messageDiv = document.getElementById(targetDivId);
+      messageDiv.style.display = 'block';
+      
+      if (data.valid) {
+        messageDiv.className = 'port-validation success';
+        messageDiv.innerHTML = '<i class="fas fa-check-circle"></i> ' + data.message;
+      } else {
+        messageDiv.className = 'port-validation error';
+        messageDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> ' + data.message;
+      }
+    })
+    .catch(error => {
+      console.error('Error checking port:', error);
+      const messageDiv = document.getElementById(targetDivId);
+      messageDiv.style.display = 'block';
+      messageDiv.className = 'port-validation error';
+      messageDiv.innerHTML = '<i class="fas fa-exclamation-triangle"></i> Error checking port availability';
+    });
+  }
 </script>
 
 <?php require_once __DIR__ . '/../includes/footer.php'; ?>
