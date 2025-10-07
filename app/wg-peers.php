@@ -500,6 +500,7 @@ try {
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Peer IP</th>
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden lg:table-cell">Allowed IPs</th>
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
+                        <th class="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider hidden md:table-cell">MikroTik</th>
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden sm:table-cell">Created</th>
                         <th class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
                     </tr>
@@ -507,7 +508,7 @@ try {
                 <tbody class="divide-y divide-gray-600">
                     <?php if (empty($peers)): ?>
                         <tr>
-                            <td colspan="7" class="px-4 lg:px-6 py-8 text-center text-gray-400">
+                            <td colspan="8" class="px-4 lg:px-6 py-8 text-center text-gray-400">
                                 <i class="fas fa-users-slash text-4xl mb-3 block"></i>
                                 <p class="text-lg mb-2">No peers configured</p>
                                 <p class="text-sm">Create your first VPN peer to get started.</p>
@@ -587,6 +588,21 @@ try {
                                         <?= ucfirst($status) ?>
                                     </span>
                                 </td>
+                                <!-- MikroTik Column -->
+                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-center hidden md:table-cell">
+                                    <div class="flex justify-center gap-1">
+                                        <button onclick="previewMikroTikScript(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['name'] ?? 'Unnamed', ENT_QUOTES) ?>')"
+                                            class="px-2 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs transition-colors"
+                                            title="Preview MikroTik script">
+                                            <i class="fas fa-eye"></i>
+                                        </button>
+                                        <button onclick="generateMikroTikScript(<?= $peer['id'] ?>)"
+                                            class="px-2 py-1 bg-orange-700 hover:bg-orange-800 text-white rounded text-xs transition-colors"
+                                            title="Download MikroTik script">
+                                            <i class="fas fa-download"></i>
+                                        </button>
+                                    </div>
+                                </td>
                                 <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell">
                                     <?php if (isset($peer['created_at'])): ?>
                                         <?= date('M j, Y', strtotime($peer['created_at'])) ?>
@@ -596,30 +612,19 @@ try {
                                 </td>
                                 <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm">
                                     <div class="flex justify-end gap-2">
+                                        <button onclick="downloadConfig(<?= $peer['id'] ?>)"
+                                            class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors"
+                                            title="Download WireGuard config">
+                                            <i class="fas fa-download mr-1"></i>Config
+                                        </button>
                                         <button onclick="showQRCode(<?= $peer['id'] ?>)"
-                                            class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors">
+                                            class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors"
+                                            title="Show QR code for mobile setup">
                                             <i class="fas fa-qrcode mr-1"></i>QR
                                         </button>
-                                        <!-- MikroTik Dropdown -->
-                                        <div class="relative inline-block">
-                                            <button onclick="toggleMikroTikDropdown(<?= $peer['id'] ?>)"
-                                                class="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs transition-colors"
-                                                title="MikroTik RouterOS options">
-                                                <i class="fas fa-router mr-1"></i>MikroTik <i class="fas fa-chevron-down ml-1"></i>
-                                            </button>
-                                            <div id="mikrotikDropdown<?= $peer['id'] ?>" class="absolute right-0 mt-1 w-48 bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-10 hidden mikrotik-dropdown">
-                                                <button onclick="previewMikroTikScript(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['name'] ?? 'Unnamed', ENT_QUOTES) ?>')"
-                                                    class="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-t-lg">
-                                                    <i class="fas fa-eye mr-2"></i>Preview Script
-                                                </button>
-                                                <button onclick="generateMikroTikScript(<?= $peer['id'] ?>)"
-                                                    class="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-b-lg">
-                                                    <i class="fas fa-download mr-2"></i>Download Script
-                                                </button>
-                                            </div>
-                                        </div>
                                         <button onclick="deletePeer(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['name'] ?? 'Unnamed', ENT_QUOTES) ?>')"
-                                            class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors">
+                                            class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
+                                            title="Delete peer">
                                             <i class="fas fa-trash mr-1"></i>Delete
                                         </button>
                                     </div>
@@ -979,9 +984,6 @@ try {
         link.click();
         document.body.removeChild(link);
         
-        // Hide dropdown after action
-        hideAllMikroTikDropdowns();
-        
         // Show success message
         const toast = document.createElement('div');
         toast.className = 'fixed top-4 right-4 bg-orange-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
@@ -992,38 +994,8 @@ try {
 
     let currentPreviewPeerId = null;
 
-    function toggleMikroTikDropdown(peerId) {
-        // Hide all other dropdowns first
-        hideAllMikroTikDropdowns();
-        
-        // Toggle the clicked dropdown
-        const dropdown = document.getElementById(`mikrotikDropdown${peerId}`);
-        dropdown.classList.toggle('hidden');
-        
-        // Close dropdown when clicking outside
-        if (!dropdown.classList.contains('hidden')) {
-            setTimeout(() => {
-                document.addEventListener('click', function closeDropdown(e) {
-                    if (!e.target.closest(`#mikrotikDropdown${peerId}`) && !e.target.closest(`[onclick*="toggleMikroTikDropdown(${peerId})"]`)) {
-                        dropdown.classList.add('hidden');
-                        document.removeEventListener('click', closeDropdown);
-                    }
-                });
-            }, 100);
-        }
-    }
-
-    function hideAllMikroTikDropdowns() {
-        document.querySelectorAll('[id^="mikrotikDropdown"]').forEach(dropdown => {
-            dropdown.classList.add('hidden');
-        });
-    }
-
     async function previewMikroTikScript(peerId, peerName) {
         currentPreviewPeerId = peerId;
-        
-        // Hide dropdown
-        hideAllMikroTikDropdowns();
         
         // Show modal
         document.getElementById('mikrotikPreviewModal').classList.remove('hidden');
@@ -1114,7 +1086,6 @@ try {
             hideCreatePeerModal();
             hideEditKeyModal();
             hideMikroTikPreview();
-            hideAllMikroTikDropdowns();
         }
     });
 

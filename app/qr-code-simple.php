@@ -29,16 +29,16 @@ $qr_url_google = "https://chart.googleapis.com/chart?chs=300x300&cht=qr&chl=" . 
  * Generate sample WireGuard configuration
  */
 function generateSampleConfig($peer_id, $interface) {
-    // Default server endpoint - you can customize this
-    $server_endpoint = "your-server.domain.com";  // Change this to your actual server
+    // Try to get server details from various sources
+    $server_endpoint = getServerEndpoint();
     $server_port = "51820";
-    $server_public_key = "YOUR_SERVER_PUBLIC_KEY_HERE";  // Replace with actual server public key
+    $server_public_key = getServerPublicKey();
     
     // Generate a sample private key (in production, this should be properly generated and stored)
-    $private_key = base64_encode(random_bytes(32)) . '=';
+    $private_key = generateWireGuardPrivateKey();
     
-    // Sample peer configuration
-    $peer_ip = "10.0.0." . (2 + intval($peer_id)) . "/32";  // Generate IP based on peer ID
+    // Sample peer configuration based on peer ID
+    $peer_ip = "10.0.0." . (2 + intval($peer_id)) . "/32";
     $allowed_ips = "10.0.0.0/24";  // Allow access to the entire VPN network
     
     $config = "[Interface]\n";
@@ -53,6 +53,73 @@ function generateSampleConfig($peer_id, $interface) {
     $config .= "PersistentKeepalive = 25\n";
     
     return $config;
+}
+
+/**
+ * Get server endpoint
+ */
+function getServerEndpoint() {
+    // Try to get from environment or config
+    if (getenv('SERVER_ENDPOINT')) {
+        return getenv('SERVER_ENDPOINT');
+    }
+    
+    // Try to get public IP
+    $public_ip = getPublicIP();
+    if ($public_ip) {
+        return $public_ip;
+    }
+    
+    // Fallback
+    return $_SERVER['HTTP_HOST'] ?? 'your-server.domain.com';
+}
+
+/**
+ * Get server public key (customize this for your setup)
+ */
+function getServerPublicKey() {
+    // In production, get this from your WireGuard server configuration
+    // You can read it from /etc/wireguard/publickey or your database
+    return 'YOUR_SERVER_PUBLIC_KEY_HERE';  // Replace with actual server public key
+}
+
+/**
+ * Generate a proper WireGuard private key
+ */
+function generateWireGuardPrivateKey() {
+    // Generate 32 random bytes and encode as base64
+    return base64_encode(random_bytes(32));
+}
+
+/**
+ * Get public IP
+ */
+function getPublicIP() {
+    $services = [
+        'https://api.ipify.org',
+        'https://ifconfig.me/ip',
+        'https://icanhazip.com'
+    ];
+    
+    foreach ($services as $service) {
+        try {
+            $context = stream_context_create([
+                'http' => [
+                    'timeout' => 3,
+                    'user_agent' => 'WireGuard QR Generator'
+                ]
+            ]);
+            
+            $ip = @file_get_contents($service, false, $context);
+            if ($ip && filter_var(trim($ip), FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+                return trim($ip);
+            }
+        } catch (Exception $e) {
+            continue;
+        }
+    }
+    
+    return null;
 }
 ?>
 

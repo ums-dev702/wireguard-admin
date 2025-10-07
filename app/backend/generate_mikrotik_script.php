@@ -102,6 +102,9 @@ try {
 function generate_mikrotik_script($interface_name, $local_ip, $network, $endpoint, $port, $server_public_key, $peer_name) {
     $timestamp = date('Y-m-d H:i:s');
     
+    // Parse local IP to get just the IP without CIDR
+    list($local_ip_only, $cidr) = explode('/', $local_ip);
+    
     return <<<SCRIPT
 # MikroTik RouterOS WireGuard Setup Script
 # Generated on: {$timestamp}
@@ -129,7 +132,7 @@ function generate_mikrotik_script($interface_name, $local_ip, $network, $endpoin
 # Step 3: Add peer configuration (if not already exists)
 :if ([:len [/interface wireguard peers find where endpoint-address="{$endpoint}"]] = 0) do={
     /interface wireguard peers add \\
-        allowed-address="{$network}/{$local_ip}" \\
+        allowed-address="{$network}/{$cidr}" \\
         endpoint-address="{$endpoint}" \\
         endpoint-port={$port} \\
         interface="{$interface_name}" \\
@@ -148,7 +151,7 @@ function generate_mikrotik_script($interface_name, $local_ip, $network, $endpoin
 :put ("Interface: " . "{$interface_name}")
 :put ("Local IP: " . "{$local_ip}")
 :put ("Peer Endpoint: " . "{$endpoint}:{$port}")
-:put ("Peer Allowed Address: " . "{$network}/{$local_ip}")
+:put ("Peer Allowed Address: " . "{$network}/{$cidr}")
 :put ("Local Public Key: " . \$wgPubKey)
 :put "===================================================================="
 :put ""
@@ -158,6 +161,13 @@ function generate_mikrotik_script($interface_name, $local_ip, $network, $endpoin
 :put ""
 :put "To add this peer to your server, run:"
 :put ("sudo wg set {$interface_name} peer \" . \$wgPubKey . \" allowed-ips {$local_ip}")
+:put ""
+:put "If you need port forwarding, add these rules to your VPS:"
+:put "# Example: Forward port 6843 to MikroTik port 8291 (Winbox)"
+:put "iptables -t nat -A PREROUTING -p tcp --dport 6843 -j DNAT --to-destination {$local_ip_only}:8291"
+:put "iptables -t nat -A POSTROUTING -p tcp -d {$local_ip_only} --dport 8291 -j MASQUERADE"
+:put "iptables -A FORWARD -p tcp -d {$local_ip_only} --dport 8291 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT"
+:put "iptables -A FORWARD -p tcp -s {$local_ip_only} --sport 8291 -m state --state ESTABLISHED,RELATED -j ACCEPT"
 :put ""
 
 # Optional: Enable the interface if not already running
