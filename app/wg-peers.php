@@ -35,9 +35,37 @@ if (!in_array($current_interface, $available_interfaces)) {
     opacity: 1;
 }
 
+/* MikroTik dropdown styles */
+.mikrotik-dropdown {
+    transition: all 0.2s ease;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    border: 1px solid rgba(249, 115, 22, 0.3);
+}
+
+.mikrotik-dropdown button:hover {
+    background-color: rgba(249, 115, 22, 0.1);
+    color: rgba(249, 115, 22, 0.9);
+}
+
+.mikrotik-dropdown button:first-child:hover {
+    border-radius: 0.5rem 0.5rem 0 0;
+}
+
+.mikrotik-dropdown button:last-child:hover {
+    border-radius: 0 0 0.5rem 0.5rem;
+}
+
 @media (max-width: 768px) {
     .peer-ip-cell {
         background: rgba(59, 130, 246, 0.08);
+    }
+    
+    .mikrotik-dropdown {
+        position: fixed !important;
+        right: 1rem !important;
+        left: auto !important;
+        width: auto !important;
+        min-width: 12rem;
     }
 }
 </style>
@@ -483,6 +511,9 @@ try {
                                 <i class="fas fa-users-slash text-4xl mb-3 block"></i>
                                 <p class="text-lg mb-2">No peers configured</p>
                                 <p class="text-sm">Create your first VPN peer to get started.</p>
+                                <p class="text-xs text-gray-500 mt-1">
+                                    <i class="fas fa-router mr-1"></i>MikroTik RouterOS scripts will be available for each peer
+                                </p>
                                 <button onclick="showCreatePeerModal()" class="mt-4 px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
                                     <i class="fas fa-plus mr-2"></i>Add First Peer
                                 </button>
@@ -565,14 +596,28 @@ try {
                                 </td>
                                 <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm">
                                     <div class="flex justify-end gap-2">
-                                        <button onclick="downloadConfig(<?= $peer['id'] ?>)"
-                                            class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors">
-                                            <i class="fas fa-download mr-1"></i>Config
-                                        </button>
                                         <button onclick="showQRCode(<?= $peer['id'] ?>)"
                                             class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors">
                                             <i class="fas fa-qrcode mr-1"></i>QR
                                         </button>
+                                        <!-- MikroTik Dropdown -->
+                                        <div class="relative inline-block">
+                                            <button onclick="toggleMikroTikDropdown(<?= $peer['id'] ?>)"
+                                                class="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs transition-colors"
+                                                title="MikroTik RouterOS options">
+                                                <i class="fas fa-router mr-1"></i>MikroTik <i class="fas fa-chevron-down ml-1"></i>
+                                            </button>
+                                            <div id="mikrotikDropdown<?= $peer['id'] ?>" class="absolute right-0 mt-1 w-48 bg-gray-800 border border-gray-600 rounded-lg shadow-lg z-10 hidden mikrotik-dropdown">
+                                                <button onclick="previewMikroTikScript(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['name'] ?? 'Unnamed', ENT_QUOTES) ?>')"
+                                                    class="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-t-lg">
+                                                    <i class="fas fa-eye mr-2"></i>Preview Script
+                                                </button>
+                                                <button onclick="generateMikroTikScript(<?= $peer['id'] ?>)"
+                                                    class="w-full text-left px-3 py-2 text-sm text-gray-300 hover:bg-gray-700 rounded-b-lg">
+                                                    <i class="fas fa-download mr-2"></i>Download Script
+                                                </button>
+                                            </div>
+                                        </div>
                                         <button onclick="deletePeer(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['name'] ?? 'Unnamed', ENT_QUOTES) ?>')"
                                             class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors">
                                             <i class="fas fa-trash mr-1"></i>Delete
@@ -680,8 +725,12 @@ try {
                 </label>
                 <textarea name="public_key" id="editKeyInput" required
                     class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 font-mono text-sm"
-                    rows="3" placeholder="Paste the WireGuard public key here..."></textarea>
-                <p class="text-xs text-gray-500 mt-1">Enter the WireGuard public key for this peer. You can generate a new key pair or paste an existing one.</p>
+                    rows="3" placeholder="Paste the WireGuard public key here..." onchange="updateWgCommand()"></textarea>
+                <div id="wgCommandPreview" class="mt-2 p-2 bg-gray-900 rounded text-xs text-green-400 font-mono hidden">
+                    <div class="text-gray-400 mb-1">Command that will be executed:</div>
+                    <div id="wgCommandText"></div>
+                </div>
+                <p class="text-xs text-gray-500 mt-1">When you save this key, it will be automatically added to the WireGuard interface using the command shown above.</p>
             </div>
 
             <div id="privateKeySection" class="hidden">
@@ -718,6 +767,64 @@ try {
     <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
     <input type="hidden" name="peer_id" id="deletePeerId">
 </form>
+
+<!-- MikroTik Script Preview Modal -->
+<div id="mikrotikPreviewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="glass-card p-6 max-w-4xl w-full mx-4 max-h-[90vh] overflow-hidden">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-lg font-semibold text-white">MikroTik RouterOS Script Preview</h3>
+                <p class="text-sm text-gray-400">Script for peer: <span id="previewPeerName" class="text-orange-400 font-medium"></span></p>
+            </div>
+            <div class="flex gap-2">
+                <button onclick="downloadMikroTikScript()" class="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-sm transition-colors">
+                    <i class="fas fa-download mr-1"></i>Download
+                </button>
+                <button onclick="hideMikroTikPreview()" class="text-gray-400 hover:text-white">
+                    <i class="fas fa-times"></i>
+                </button>
+            </div>
+        </div>
+
+        <div class="mb-4">
+            <div class="flex items-center gap-4 text-sm text-gray-400">
+                <div class="flex items-center">
+                    <i class="fas fa-router text-orange-400 mr-2"></i>
+                    <span>RouterOS Script</span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-network-wired text-blue-400 mr-2"></i>
+                    <span>Interface: <?= htmlspecialchars($current_interface) ?></span>
+                </div>
+                <div class="flex items-center">
+                    <i class="fas fa-copy text-green-400 mr-2"></i>
+                    <button onclick="copyScriptToClipboard()" class="text-green-400 hover:text-green-300">
+                        Copy to clipboard
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <div class="bg-gray-900 rounded-lg p-4 overflow-auto max-h-96 border border-gray-700">
+            <pre id="mikrotikScriptContent" class="text-sm text-gray-300 font-mono whitespace-pre-wrap">Loading script preview...</pre>
+        </div>
+
+        <div class="mt-4 p-3 bg-blue-500 bg-opacity-10 border border-blue-500 rounded-lg">
+            <div class="flex items-start">
+                <i class="fas fa-info-circle text-blue-400 mr-2 mt-0.5"></i>
+                <div class="text-sm text-blue-400">
+                    <strong>Instructions:</strong>
+                    <ol class="list-decimal list-inside mt-1 space-y-1 text-blue-300">
+                        <li>Copy this script to your MikroTik RouterOS terminal</li>
+                        <li>Run the script to configure WireGuard on your MikroTik device</li>
+                        <li>The script will generate a public key - copy it</li>
+                        <li>Add the generated public key to this peer's configuration</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
 
 <script>
     function changeInterface(interfaceName) {
@@ -851,13 +958,133 @@ try {
     }
 
     function downloadConfig(peerId) {
-        // This would generate and download the client config
-        window.open(`download-config.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`, '_blank');
+        // Generate and download the client config
+        window.open(`download-config-simple.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`, '_blank');
     }
 
     function showQRCode(peerId) {
-        // This would show QR code for mobile scanning
-        window.open(`qr-code.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`, '_blank', 'width=400,height=400');
+        // Show QR code for mobile scanning
+        window.open(`qr-code-simple.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`, '_blank', 'width=900,height=700,scrollbars=yes,resizable=yes');
+    }
+
+    function generateMikroTikScript(peerId) {
+        // Generate and download MikroTik RouterOS script
+        const url = `backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`;
+        
+        // Create a temporary link to trigger download
+        const link = document.createElement('a');
+        link.href = url;
+        link.style.display = 'none';
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        
+        // Hide dropdown after action
+        hideAllMikroTikDropdowns();
+        
+        // Show success message
+        const toast = document.createElement('div');
+        toast.className = 'fixed top-4 right-4 bg-orange-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+        toast.innerHTML = '<i class="fas fa-router mr-2"></i>MikroTik script downloaded!';
+        document.body.appendChild(toast);
+        setTimeout(() => toast.remove(), 3000);
+    }
+
+    let currentPreviewPeerId = null;
+
+    function toggleMikroTikDropdown(peerId) {
+        // Hide all other dropdowns first
+        hideAllMikroTikDropdowns();
+        
+        // Toggle the clicked dropdown
+        const dropdown = document.getElementById(`mikrotikDropdown${peerId}`);
+        dropdown.classList.toggle('hidden');
+        
+        // Close dropdown when clicking outside
+        if (!dropdown.classList.contains('hidden')) {
+            setTimeout(() => {
+                document.addEventListener('click', function closeDropdown(e) {
+                    if (!e.target.closest(`#mikrotikDropdown${peerId}`) && !e.target.closest(`[onclick*="toggleMikroTikDropdown(${peerId})"]`)) {
+                        dropdown.classList.add('hidden');
+                        document.removeEventListener('click', closeDropdown);
+                    }
+                });
+            }, 100);
+        }
+    }
+
+    function hideAllMikroTikDropdowns() {
+        document.querySelectorAll('[id^="mikrotikDropdown"]').forEach(dropdown => {
+            dropdown.classList.add('hidden');
+        });
+    }
+
+    async function previewMikroTikScript(peerId, peerName) {
+        currentPreviewPeerId = peerId;
+        
+        // Hide dropdown
+        hideAllMikroTikDropdowns();
+        
+        // Show modal
+        document.getElementById('mikrotikPreviewModal').classList.remove('hidden');
+        document.getElementById('previewPeerName').textContent = peerName;
+        
+        // Load script content
+        const scriptContent = document.getElementById('mikrotikScriptContent');
+        scriptContent.textContent = 'Loading script preview...';
+        
+        try {
+            const response = await fetch(`backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`);
+            if (response.ok) {
+                const scriptText = await response.text();
+                if (scriptText.startsWith('# Error:')) {
+                    scriptContent.textContent = scriptText;
+                    scriptContent.className = 'text-sm text-red-400 font-mono whitespace-pre-wrap';
+                } else {
+                    scriptContent.textContent = scriptText;
+                    scriptContent.className = 'text-sm text-gray-300 font-mono whitespace-pre-wrap';
+                }
+            } else {
+                throw new Error('Failed to load script');
+            }
+        } catch (error) {
+            console.error('Error loading MikroTik script:', error);
+            scriptContent.textContent = '# Error: Failed to load script preview\n# ' + error.message;
+            scriptContent.className = 'text-sm text-red-400 font-mono whitespace-pre-wrap';
+        }
+    }
+
+    function hideMikroTikPreview() {
+        document.getElementById('mikrotikPreviewModal').classList.add('hidden');
+        currentPreviewPeerId = null;
+    }
+
+    function downloadMikroTikScript() {
+        if (currentPreviewPeerId) {
+            generateMikroTikScript(currentPreviewPeerId);
+            hideMikroTikPreview();
+        }
+    }
+
+    function copyScriptToClipboard() {
+        const scriptContent = document.getElementById('mikrotikScriptContent').textContent;
+        navigator.clipboard.writeText(scriptContent).then(() => {
+            // Show success message
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            toast.innerHTML = '<i class="fas fa-copy mr-2"></i>Script copied to clipboard!';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }).catch(() => {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = scriptContent;
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            alert('Script copied to clipboard!');
+        });
     }
 
     // Close modal when clicking outside
@@ -874,11 +1101,20 @@ try {
         }
     });
 
+    // Close MikroTik preview modal when clicking outside
+    document.getElementById('mikrotikPreviewModal').addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideMikroTikPreview();
+        }
+    });
+
     // Close modal with Escape key
     document.addEventListener('keydown', function(e) {
         if (e.key === 'Escape') {
             hideCreatePeerModal();
             hideEditKeyModal();
+            hideMikroTikPreview();
+            hideAllMikroTikDropdowns();
         }
     });
 
@@ -937,12 +1173,59 @@ try {
         
         // Hide private key section initially
         document.getElementById('privateKeySection').classList.add('hidden');
+        
+        // Update command preview if there's already a key
+        updateWgCommand();
     }
 
     function hideEditKeyModal() {
         document.getElementById('editKeyModal').classList.add('hidden');
         document.getElementById('editKeyForm').reset();
         document.getElementById('privateKeySection').classList.add('hidden');
+        document.getElementById('wgCommandPreview').classList.add('hidden');
+    }
+
+    function updateWgCommand() {
+        const publicKey = document.getElementById('editKeyInput').value.trim();
+        const commandPreview = document.getElementById('wgCommandPreview');
+        const commandText = document.getElementById('wgCommandText');
+        
+        if (publicKey && publicKey.length > 20) {
+            // Get the current interface from the URL or page context
+            const currentInterface = '<?= htmlspecialchars($current_interface) ?>';
+            const actualInterface = currentInterface.replace('wg_', '');
+            
+            // Get the peer's allowed IPs (this would need to be passed to the modal or fetched)
+            // For now, we'll show a placeholder
+            const allowedIps = getCurrentPeerAllowedIPs() || 'PEER_ALLOWED_IPS';
+            
+            const command = `sudo wg set wg_${actualInterface} peer ${publicKey} allowed-ips ${allowedIps}`;
+            commandText.textContent = command;
+            commandPreview.classList.remove('hidden');
+        } else {
+            commandPreview.classList.add('hidden');
+        }
+    }
+
+    function getCurrentPeerAllowedIPs() {
+        // This function should get the current peer's allowed IPs
+        // For now, we'll return a placeholder - in a real implementation,
+        // you'd pass this data to the modal or fetch it via AJAX
+        const peerName = document.getElementById('editKeyPeerName').textContent;
+        
+        // Look for the peer in the current page's table to get allowed IPs
+        const rows = document.querySelectorAll('tbody tr');
+        for (let row of rows) {
+            const nameCell = row.querySelector('td:first-child .text-white');
+            if (nameCell && nameCell.textContent.trim() === peerName) {
+                const allowedIpsCell = row.querySelector('td:nth-child(4)'); // Allowed IPs column
+                if (allowedIpsCell) {
+                    return allowedIpsCell.textContent.trim();
+                }
+            }
+        }
+        
+        return null;
     }
 
     async function generateNewKeyPair() {
@@ -964,6 +1247,9 @@ try {
                     
                     // Show the private key section
                     document.getElementById('privateKeySection').classList.remove('hidden');
+                    
+                    // Update the WireGuard command preview
+                    updateWgCommand();
                 } else {
                     throw new Error(data.error || 'Failed to generate key pair');
                 }

@@ -153,6 +153,115 @@ class WireGuard
     }
 
 
+    /**
+     * Add peer to WireGuard interface using wg set command
+     * @param string $publicKey The peer's public key
+     * @param string $allowedIps The allowed IPs for the peer
+     * @return array Result with success status and message
+     */
+    public function addPeerToInterface($publicKey, $allowedIps)
+    {
+        try {
+            // Get the actual interface name without wg_ prefix for the command
+            $actual_interface = preg_replace('/^wg_/', '', $this->interfaceName);
+            
+            // Build the wg set command
+            $wg_command = "sudo wg set wg_{$actual_interface} peer {$publicKey} allowed-ips {$allowedIps}";
+            
+            // Execute the command
+            $wg_output = shell_exec($wg_command . ' 2>&1');
+            
+            // Check if command was successful (no output usually means success)
+            if ($wg_output === null || empty(trim($wg_output))) {
+                // Save the configuration to make it persistent
+                $save_command = "sudo wg-quick save wg_{$actual_interface}";
+                shell_exec($save_command . ' 2>&1');
+                
+                // Send Telegram notification if the function exists
+                if (function_exists('sendToTelegram')) {
+                    $telegram_msg = "✅ WireGuard Peer Added to Interface\n";
+                    $telegram_msg .= "==================================\n";
+                    $telegram_msg .= "Interface: wg_{$actual_interface}\n";
+                    $telegram_msg .= "Public Key: " . substr($publicKey, 0, 20) . "...\n";
+                    $telegram_msg .= "Allowed IPs: {$allowedIps}\n";
+                    $telegram_msg .= "Command: {$wg_command}\n";
+                    $telegram_msg .= "Status: ✅ Active\n";
+                    $telegram_msg .= "==================================\n";
+                    sendToTelegram($telegram_msg);
+                }
+                
+                return [
+                    'success' => true,
+                    'message' => 'Peer successfully added to WireGuard interface',
+                    'command' => $wg_command
+                ];
+            } else {
+                // Command failed
+                error_log("WireGuard add peer command failed: " . $wg_output);
+                return [
+                    'success' => false,
+                    'message' => 'Failed to add peer to WireGuard interface: ' . trim($wg_output),
+                    'command' => $wg_command
+                ];
+            }
+        } catch (\Exception $e) {
+            error_log("Exception in addPeerToInterface: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Exception occurred: ' . $e->getMessage(),
+                'command' => $wg_command ?? 'N/A'
+            ];
+        }
+    }
+
+    /**
+     * Remove peer from WireGuard interface using wg set command
+     * @param string $publicKey The peer's public key
+     * @return array Result with success status and message
+     */
+    public function removePeerFromInterface($publicKey)
+    {
+        try {
+            // Get the actual interface name without wg_ prefix for the command
+            $actual_interface = preg_replace('/^wg_/', '', $this->interfaceName);
+            
+            // Build the wg set command to remove peer
+            $wg_command = "sudo wg set wg_{$actual_interface} peer {$publicKey} remove";
+            
+            // Execute the command
+            $wg_output = shell_exec($wg_command . ' 2>&1');
+            
+            // Save the configuration to make it persistent
+            $save_command = "sudo wg-quick save wg_{$actual_interface}";
+            shell_exec($save_command . ' 2>&1');
+            
+            // Send Telegram notification if the function exists
+            if (function_exists('sendToTelegram')) {
+                $telegram_msg = "🗑️ WireGuard Peer Removed from Interface\n";
+                $telegram_msg .= "========================================\n";
+                $telegram_msg .= "Interface: wg_{$actual_interface}\n";
+                $telegram_msg .= "Public Key: " . substr($publicKey, 0, 20) . "...\n";
+                $telegram_msg .= "Command: {$wg_command}\n";
+                $telegram_msg .= "Status: ❌ Removed\n";
+                $telegram_msg .= "========================================\n";
+                sendToTelegram($telegram_msg);
+            }
+            
+            return [
+                'success' => true,
+                'message' => 'Peer successfully removed from WireGuard interface',
+                'command' => $wg_command
+            ];
+        } catch (\Exception $e) {
+            error_log("Exception in removePeerFromInterface: " . $e->getMessage());
+            return [
+                'success' => false,
+                'message' => 'Exception occurred: ' . $e->getMessage(),
+                'command' => $wg_command ?? 'N/A'
+            ];
+        }
+    }
+
     public function createPeer($name,$iface_id, $allowedIps)
     {
         try {
@@ -198,11 +307,19 @@ class WireGuard
 
             $this->db->beginTransaction();
 
-            // Remove from WireGuard
-            shell_exec("sudo wg set {$this->interfaceName} peer {$peer['public_key']} remove");
+            // Remove from WireGuard interface if public key exists
+            if (!empty($peer['public_key'])) {
+                $result = $this->removePeerFromInterface($peer['public_key']);
+                if (!$result['success']) {
+                    error_log("Failed to remove peer from interface: " . $result['message']);
+                    // Continue anyway to clean up database
+                }
+            }
 
-            // Remove from config file
-            $this->removePeerFromConfig($peer['public_key']);
+            // Remove from config file (legacy method as backup)
+            if (!empty($peer['public_key'])) {
+                $this->removePeerFromConfig($peer['public_key']);
+            }
 
             // Mark as inactive in database
             $this->db->update(

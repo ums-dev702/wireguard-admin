@@ -531,6 +531,127 @@ function is_port_completely_free(int $port): bool
 }
 
 /**
+ * Add a peer to WireGuard interface using the wg set command
+ * This mimics the command: sudo wg set wg0 peer <public_key> allowed-ips <allowed_ips>
+ *
+ * @param string $interface_name The interface name (e.g., "wg0", "acs")
+ * @param string $public_key The peer's public key
+ * @param string $allowed_ips The allowed IPs for the peer (e.g., "10.7.0.5/32")
+ * @return array Result with success status, message, and command executed
+ */
+function add_peer_to_wireguard_interface(string $interface_name, string $public_key, string $allowed_ips): array
+{
+    try {
+        // Clean the interface name (remove wg_ prefix if present)
+        $clean_interface = preg_replace('/^wg_/', '', $interface_name);
+        
+        // Build the wg set command
+        $wg_command = "sudo wg set wg_{$clean_interface} peer {$public_key} allowed-ips {$allowed_ips}";
+        
+        // Execute the command
+        $wg_output = shell_exec($wg_command . ' 2>&1');
+        
+        // Check if command was successful (no output usually means success)
+        if ($wg_output === null || empty(trim($wg_output))) {
+            // Save the configuration to make it persistent
+            $save_command = "sudo wg-quick save wg_{$clean_interface}";
+            shell_exec($save_command . ' 2>&1');
+            
+            // Send Telegram notification if the function exists
+            if (function_exists('sendToTelegram')) {
+                $telegram_msg = "✅ WireGuard Peer Added via Function\n";
+                $telegram_msg .= "===================================\n";
+                $telegram_msg .= "Interface: wg_{$clean_interface}\n";
+                $telegram_msg .= "Public Key: " . substr($public_key, 0, 20) . "...\n";
+                $telegram_msg .= "Allowed IPs: {$allowed_ips}\n";
+                $telegram_msg .= "Command: {$wg_command}\n";
+                $telegram_msg .= "Status: ✅ Active\n";
+                $telegram_msg .= "===================================\n";
+                sendToTelegram($telegram_msg);
+            }
+            
+            return [
+                'success' => true,
+                'message' => "Peer successfully added to WireGuard interface wg_{$clean_interface}",
+                'command' => $wg_command,
+                'interface' => "wg_{$clean_interface}",
+                'public_key_preview' => substr($public_key, 0, 20) . '...',
+                'allowed_ips' => $allowed_ips
+            ];
+        } else {
+            // Command failed
+            error_log("WireGuard add peer command failed: " . $wg_output);
+            return [
+                'success' => false,
+                'message' => 'Failed to add peer to WireGuard interface: ' . trim($wg_output),
+                'command' => $wg_command,
+                'error_output' => trim($wg_output)
+            ];
+        }
+    } catch (Throwable $e) {
+        error_log("Exception in add_peer_to_wireguard_interface: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Exception occurred: ' . $e->getMessage(),
+            'command' => $wg_command ?? 'N/A'
+        ];
+    }
+}
+
+/**
+ * Remove a peer from WireGuard interface using the wg set command
+ * This mimics the command: sudo wg set wg0 peer <public_key> remove
+ *
+ * @param string $interface_name The interface name (e.g., "wg0", "acs")
+ * @param string $public_key The peer's public key
+ * @return array Result with success status, message, and command executed
+ */
+function remove_peer_from_wireguard_interface(string $interface_name, string $public_key): array
+{
+    try {
+        // Clean the interface name (remove wg_ prefix if present)
+        $clean_interface = preg_replace('/^wg_/', '', $interface_name);
+        
+        // Build the wg set command to remove peer
+        $wg_command = "sudo wg set wg_{$clean_interface} peer {$public_key} remove";
+        
+        // Execute the command
+        $wg_output = shell_exec($wg_command . ' 2>&1');
+        
+        // Save the configuration to make it persistent
+        $save_command = "sudo wg-quick save wg_{$clean_interface}";
+        shell_exec($save_command . ' 2>&1');
+        
+        // Send Telegram notification if the function exists
+        if (function_exists('sendToTelegram')) {
+            $telegram_msg = "🗑️ WireGuard Peer Removed via Function\n";
+            $telegram_msg .= "======================================\n";
+            $telegram_msg .= "Interface: wg_{$clean_interface}\n";
+            $telegram_msg .= "Public Key: " . substr($public_key, 0, 20) . "...\n";
+            $telegram_msg .= "Command: {$wg_command}\n";
+            $telegram_msg .= "Status: ❌ Removed\n";
+            $telegram_msg .= "======================================\n";
+            sendToTelegram($telegram_msg);
+        }
+        
+        return [
+            'success' => true,
+            'message' => "Peer successfully removed from WireGuard interface wg_{$clean_interface}",
+            'command' => $wg_command,
+            'interface' => "wg_{$clean_interface}",
+            'public_key_preview' => substr($public_key, 0, 20) . '...'
+        ];
+    } catch (Throwable $e) {
+        error_log("Exception in remove_peer_from_wireguard_interface: " . $e->getMessage());
+        return [
+            'success' => false,
+            'message' => 'Exception occurred: ' . $e->getMessage(),
+            'command' => $wg_command ?? 'N/A'
+        ];
+    }
+}
+
+/**
  * Extract IP address from allowed IPs string (removes CIDR notation)
  *
  * @param string $allowed_ips The allowed IPs string (e.g., "10.0.0.2/32")
