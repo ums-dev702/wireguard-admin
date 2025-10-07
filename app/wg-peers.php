@@ -1011,15 +1011,9 @@ try {
             if (!currentInterface) {
                 throw new Error('No interface selected. Please select an interface first.');
             }
-            
-            // Build absolute URL for better compatibility
-            const currentPath = window.location.pathname;
-            const baseDir = currentPath.substring(0, currentPath.lastIndexOf('/')) + '/';
-            const url = `${baseDir}backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=${encodeURIComponent(currentInterface)}`;
-          
 
-
-            
+             const url = window.location.origin + '/generate_mikrotik_script?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>';
+            console.log('Generating MikroTik script from URL:', url);
             const response = await fetch(url);
             console.log('Response status:', response.status);
             console.log('Response headers:', Object.fromEntries(response.headers.entries()));
