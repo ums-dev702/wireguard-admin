@@ -103,7 +103,7 @@ if (isset($_POST['edit_public_key'])) {
     $user_id = $currentUser['id'] ?? null;
     
     if (empty($peer_id) || empty($public_key)) {
-        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Peer ID and public key are required');
+        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Peer ID and public key are required');
         exit;
     }
     
@@ -115,7 +115,7 @@ if (isset($_POST['edit_public_key'])) {
         $peer = $wg_instance->getPeer($peer_id);
         
         if (!$peer) {
-            header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Peer not found');
+            header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Peer not found');
             exit;
         }
         
@@ -171,11 +171,11 @@ if (isset($_POST['edit_public_key'])) {
             );
         }
         
-        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&success=' . urlencode($success_message));
+        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&success=' . urlencode($success_message));
         exit;
     } catch (Exception $e) {
         error_log("Error updating public key: " . $e->getMessage());
-        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Failed to update public key: ' . $e->getMessage());
+        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Failed to update public key: ' . $e->getMessage());
         exit;
     }
 }
@@ -220,7 +220,7 @@ if(isset($_POST['save_public_key'])) {
     $user_id = $currentUser['id'] ?? null;
 
     if (empty($peer_id) || empty($public_key)) {
-        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Peer ID and public key are required');
+        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Peer ID and public key are required');
         exit;
     }
 
@@ -243,7 +243,7 @@ if(isset($_POST['save_public_key'])) {
         $peer = $wg_instance->getPeer($peer_id);
 
         if (!$peer) {
-            header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Peer not found');
+            header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Peer not found');
             exit;
         }
 
@@ -319,7 +319,7 @@ if(isset($_POST['save_public_key'])) {
         }
     } catch (Exception $e) {
         error_log("Error updating public key: " . $e->getMessage());
-        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Failed to update public key: ' . $e->getMessage());
+        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Failed to update public key: ' . $e->getMessage());
         exit;
     }
 
