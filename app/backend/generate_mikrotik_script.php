@@ -1,4 +1,5 @@
 <?php
+require_once __DIR__ . '/../../config.php';
 require_once __DIR__ . '/../../includes/auth.php';
 require_once __DIR__ . '/../../includes/functions.php';
 
@@ -85,7 +86,7 @@ try {
     $network_with_cidr = $network . '/' . $cidr;
     
     // Get server endpoint from config or use placeholder
-    $server_endpoint = get_server_endpoint(); // Function to get server's public endpoint
+    $server_endpoint = SERVER_IP;
     
     // Clean interface name for MikroTik (remove special characters)
     $mikrotik_interface_name = 'wg_' . preg_replace('/[^a-zA-Z0-9_]/', '_', $interface_name);
@@ -123,13 +124,6 @@ function generate_mikrotik_script($interface_name, $local_ip, $network, $endpoin
     list($local_ip_only, $cidr) = explode('/', $local_ip);
     
     return <<<SCRIPT
-# MikroTik RouterOS WireGuard Setup Script
-# Generated on: {$timestamp}
-# Interface: {$interface_name}
-# Peer: {$peer_name}
-# Local IP: {$local_ip}
-# Server Endpoint: {$endpoint}:{$port}
-
 # Step 1: Create WireGuard interface (if it doesn't exist)
 :if ([:len [/interface wireguard find where name="{$interface_name}"]] = 0) do={
     /interface wireguard add mtu=1420 name="{$interface_name}"
@@ -162,61 +156,6 @@ function generate_mikrotik_script($interface_name, $local_ip, $network, $endpoin
 
 # Step 4: Get and display the generated public key
 :local wgPubKey [/interface wireguard get [find name="{$interface_name}"] value-name=public-key]
-
-:put ""
-:put "==================== WIREGUARD SETUP COMPLETED ===================="
-:put ("Interface: " . "{$interface_name}")
-:put ("Local IP: " . "{$local_ip}")
-:put ("Peer Endpoint: " . "{$endpoint}:{$port}")
-:put ("Peer Allowed Address: " . "{$network}/{$cidr}")
-:put ("Local Public Key: " . \$wgPubKey)
-:put "===================================================================="
-:put ""
-:put "IMPORTANT: Copy the 'Local Public Key' shown above"
-:put "You need to add this public key to your WireGuard server"
-:put "as a peer with allowed IPs: {$local_ip}"
-:put ""
-:put "To add this peer to your server, run:"
-:put ("sudo wg set {$interface_name} peer \" . \$wgPubKey . \" allowed-ips {$local_ip}")
-:put ""
-:put "================== PORT FORWARDING EXAMPLES =================="
-:put "Add these rules to your VPS to forward ports to this MikroTik:"
-:put ""
-:put "# 1. Winbox Access (8291) via port 6843"
-:put "iptables -t nat -A PREROUTING -p tcp --dport 6843 -j DNAT --to-destination {$local_ip_only}:8291"
-:put "iptables -t nat -A POSTROUTING -p tcp -d {$local_ip_only} --dport 8291 -j MASQUERADE"
-:put "iptables -A FORWARD -p tcp -d {$local_ip_only} --dport 8291 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT"
-:put "iptables -A FORWARD -p tcp -s {$local_ip_only} --sport 8291 -m state --state ESTABLISHED,RELATED -j ACCEPT"
-:put ""
-:put "# 2. Web Config (80) via port 6842"
-:put "iptables -t nat -A PREROUTING -p tcp --dport 6842 -j DNAT --to-destination {$local_ip_only}:80"
-:put "iptables -t nat -A POSTROUTING -p tcp -d {$local_ip_only} --dport 80 -j MASQUERADE"
-:put "iptables -A FORWARD -p tcp -d {$local_ip_only} --dport 80 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT"
-:put "iptables -A FORWARD -p tcp -s {$local_ip_only} --sport 80 -m state --state ESTABLISHED,RELATED -j ACCEPT"
-:put ""
-:put "# 3. HTTPS Web Config (443) via port 6844"
-:put "iptables -t nat -A PREROUTING -p tcp --dport 6844 -j DNAT --to-destination {$local_ip_only}:443"
-:put "iptables -t nat -A POSTROUTING -p tcp -d {$local_ip_only} --dport 443 -j MASQUERADE"
-:put "iptables -A FORWARD -p tcp -d {$local_ip_only} --dport 443 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT"
-:put "iptables -A FORWARD -p tcp -s {$local_ip_only} --sport 443 -m state --state ESTABLISHED,RELATED -j ACCEPT"
-:put ""
-:put "# 4. SSH Access (22) via port 6845"
-:put "iptables -t nat -A PREROUTING -p tcp --dport 6845 -j DNAT --to-destination {$local_ip_only}:22"
-:put "iptables -t nat -A POSTROUTING -p tcp -d {$local_ip_only} --dport 22 -j MASQUERADE"
-:put "iptables -A FORWARD -p tcp -d {$local_ip_only} --dport 22 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT"
-:put "iptables -A FORWARD -p tcp -s {$local_ip_only} --sport 22 -m state --state ESTABLISHED,RELATED -j ACCEPT"
-:put ""
-:put "# 5. Custom Service (8080) via port 6846"
-:put "iptables -t nat -A PREROUTING -p tcp --dport 6846 -j DNAT --to-destination {$local_ip_only}:8080"
-:put "iptables -t nat -A POSTROUTING -p tcp -d {$local_ip_only} --dport 8080 -j MASQUERADE"
-:put "iptables -A FORWARD -p tcp -d {$local_ip_only} --dport 8080 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT"
-:put "iptables -A FORWARD -p tcp -s {$local_ip_only} --sport 8080 -m state --state ESTABLISHED,RELATED -j ACCEPT"
-:put ""
-:put "==============================================================="
-:put "NOTE: Replace the external ports (684X) with your preferred ports"
-:put "Make sure to open these ports in your VPS firewall (UFW):"
-:put "sudo ufw allow 6842:6850/tcp"
-:put ""
 
 # Optional: Enable the interface if not already running
 # Uncomment the next line if you want to automatically start the interface
