@@ -701,7 +701,7 @@ try {
     <div class="glass-card p-6 max-w-md w-full mx-4">
         <div class="flex justify-between items-center mb-4">
             <div>
-                <h3 class="text-lg font-semibold text-white">Edit Public Key</h3>
+                <h3 class="text-lg font-semibold text-white">Update Public Key</h3>
                 <p class="text-sm text-gray-400">Peer: <span id="editKeyPeerName" class="text-blue-400 font-medium"></span></p>
             </div>
             <button onclick="hideEditKeyModal()" class="text-gray-400 hover:text-white">
@@ -709,7 +709,7 @@ try {
             </button>
         </div>
 
-        <form method="POST" id="editKeyForm" action="backend/wg_peer_backend.php" class="space-y-4">
+        <form method="POST" id="editKeyForm" action="app/backend/wg_peer_backend.php" class="space-y-4">
             <input type="hidden" name="edit_public_key" value="1">
             <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
             <input type="hidden" name="peer_id" id="editKeyPeerId">
