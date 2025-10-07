@@ -1011,8 +1011,7 @@ try {
             if (!currentInterface) {
                 throw new Error('No interface selected. Please select an interface first.');
             }
-
-             const url = window.location.origin + '/generate_mikrotik_script?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>';
+            const url = window.location.origin + '/generate_mikrotik_script?peer_id=' + encodeURIComponent(peerId) + '&interface=' + encodeURIComponent(currentInterface);
             console.log('Generating MikroTik script from URL:', url);
             const response = await fetch(url);
             console.log('Response status:', response.status);

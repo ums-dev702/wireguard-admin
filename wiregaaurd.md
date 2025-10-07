@@ -549,3 +549,4 @@ restart-all-wg.sh
 
 
 
+   //  const url = window.location.origin + '/generate_mikrotik_script?peer_id=${peerId}&interface=<?= //urlencode($current_interface) ?>';
