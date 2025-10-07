@@ -615,16 +615,6 @@ try {
                                 </td>
                                 <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm">
                                     <div class="flex justify-end gap-2">
-                                        <button onclick="downloadConfig(<?= $peer['id'] ?>)"
-                                            class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors"
-                                            title="Download WireGuard config">
-                                            <i class="fas fa-download mr-1"></i>Config
-                                        </button>
-                                        <button onclick="showQRCode(<?= $peer['id'] ?>)"
-                                            class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-xs transition-colors"
-                                            title="Show QR code for mobile setup">
-                                            <i class="fas fa-qrcode mr-1"></i>QR
-                                        </button>
                                         <button onclick="deletePeer(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['name'] ?? 'Unnamed', ENT_QUOTES) ?>')"
                                             class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
                                             title="Delete peer">
