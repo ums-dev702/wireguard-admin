@@ -77,7 +77,7 @@ try {
     // Interface information
     $interface_address = $interface_info['address'] ?? '192.168.1.1/24';
     $interface_port = $interface_info['port'] ?? '51820';
-    $interface_public_key = $interface_info['public_key'] ?? '';
+    $interface_public_key = WG_PUBLIC_KEY;
     
     // Parse interface address to get IP and network
     list($interface_ip, $cidr) = explode('/', $interface_address);
@@ -157,10 +157,9 @@ function generate_mikrotik_script($interface_name, $local_ip, $network, $endpoin
 # Step 4: Get and display the generated public key
 :local wgPubKey [/interface wireguard get [find name="{$interface_name}"] value-name=public-key]
 
-# Optional: Enable the interface if not already running
-# Uncomment the next line if you want to automatically start the interface
-# /interface wireguard enable [find name="{$interface_name}"]
-
+:put ("Local Public Key: " . [/interface wireguard get [find name="{$interface_name}"] value-name=public-key])  
+:put "COPY the above public key to add this peer on your server."
+:put "MikroTik WireGuard setup script completed."
 SCRIPT;
 }
 
