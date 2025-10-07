@@ -709,7 +709,7 @@ try {
             </button>
         </div>
 
-        <form method="POST" action="app/backend/wg_peer_backend.php" class="space-y-4">
+        <form method="POST" id="editKeyForm" action="backend/wg_peer_backend.php" class="space-y-4">
             <input type="hidden" name="edit_public_key" value="1">
             <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
             <input type="hidden" name="peer_id" id="editKeyPeerId">
@@ -747,7 +747,7 @@ try {
                     class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
                     Cancel
                 </button>
-                <button type="submit" name="save_public_key"
+                <button type="submit" name="edit_public_key"
                     class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
                     <i class="fas fa-save mr-2"></i>Save Key
                 </button>
@@ -1223,41 +1223,6 @@ try {
         return null;
     }
 
-    async function generateNewKeyPair() {
-        try {
-            // Show loading state
-            const publicKeyInput = document.getElementById('editKeyInput');
-            const privateKeyInput = document.getElementById('generatedPrivateKey');
-            
-            publicKeyInput.value = 'Generating new key pair...';
-            publicKeyInput.disabled = true;
-            
-            // Make AJAX call to generate key pair
-            const response = await fetch('backend/generate_keypair.php');
-            if (response.ok) {
-                const data = await response.json();
-                if (data.success) {
-                    publicKeyInput.value = data.public_key;
-                    privateKeyInput.value = data.private_key;
-                    
-                    // Show the private key section
-                    document.getElementById('privateKeySection').classList.remove('hidden');
-                    
-                    // Update the WireGuard command preview
-                    updateWgCommand();
-                } else {
-                    throw new Error(data.error || 'Failed to generate key pair');
-                }
-            } else {
-                throw new Error('Server error');
-            }
-        } catch (error) {
-            console.error('Error generating key pair:', error);
-            alert('Failed to generate key pair: ' + error.message);
-        } finally {
-            document.getElementById('editKeyInput').disabled = false;
-        }
-    }
 
     // Auto-generate IP when interface changes
     <?php if (!empty($current_interface)): ?>
