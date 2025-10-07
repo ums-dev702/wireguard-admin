@@ -123,7 +123,7 @@ if (isset($_POST['edit_public_key'])) {
         $db->update('wg_peers', [
             'public_key' => $public_key,
             'status' => 'active'  // Mark as active since it now has a key
-        ], 'id = ?', [$peer_id]);
+        ], 'id = :peer_id', ['peer_id' => $peer_id]);
         
         // Add peer to WireGuard interface using wg set command
         $actual_interface = preg_replace('/^wg_/', '', $interface);

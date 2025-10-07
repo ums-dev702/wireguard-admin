@@ -747,7 +747,7 @@ try {
                     class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
                     Cancel
                 </button>
-                <button type="submit" name="save_public_key"
+                <button type="submit" name="edit_public_key"
                     class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
                     <i class="fas fa-save mr-2"></i>Save Key
                 </button>
