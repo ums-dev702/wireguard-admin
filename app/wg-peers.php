@@ -717,9 +717,6 @@ try {
             <div>
                 <label class="block text-sm font-medium text-gray-300 mb-2">
                     Public Key
-                    <button type="button" onclick="generateNewKeyPair()" class="ml-2 text-xs text-blue-400 hover:text-blue-300">
-                        <i class="fas fa-key"></i> Generate New
-                    </button>
                 </label>
                 <textarea name="public_key" id="editKeyInput" required
                     class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500 font-mono text-sm"
@@ -750,7 +747,7 @@ try {
                     class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
                     Cancel
                 </button>
-                <button type="submit"
+                <button type="submit" name="save_public_key"
                     class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
                     <i class="fas fa-save mr-2"></i>Save Key
                 </button>

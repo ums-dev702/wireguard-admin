@@ -211,3 +211,116 @@ function get_interface_details($interface)
     return null;
   }
 }
+
+
+if(isset($_POST['save_public_key'])) {
+    $interface = $_POST['interface'] ?? '';
+    $peer_id = $_POST['peer_id'] ?? '';
+    $public_key = trim($_POST['public_key'] ?? '');
+    $user_id = $currentUser['id'] ?? null;
+
+    if (empty($peer_id) || empty($public_key)) {
+        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Peer ID and public key are required');
+        exit;
+    }
+
+    // Validate public key format (Base64, 44 characters)
+    if (!preg_match('/^[A-Za-z0-9+/]{43}=$/', $public_key)) {
+        http_response_code(400);
+        echo json_encode([
+            'success' => false,
+            'message' => 'Invalid public key format',
+            'details' => 'Public key must be a valid Base64 string of 44 characters'
+        ]);
+        exit;
+    }
+
+    try {
+        // Initialize WireGuard instance
+        $wg_instance = new \WireGuardAdmin\WireGuard($db, $interface);
+
+        // Get peer info for logging
+        $peer = $wg_instance->getPeer($peer_id);
+
+        if (!$peer) {
+            header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Peer not found');
+            exit;
+        }
+
+        // Update the public key directly in the database
+        $db->update('wg_peers', [
+            'public_key' => $public_key,
+            'status' => 'active'  // Mark as active since it now has a key
+        ], 'id = ?', [$peer_id]);
+
+        // Add peer to WireGuard interface using wg set command
+        $actual_interface = preg_replace('/^wg_/', '', $interface);
+        $allowed_ips = $peer['allowed_ips'];
+
+        // Execute the wg set command to add the peer to the interface
+        $wg_command = "sudo wg set wg_{$actual_interface} peer {$public_key} allowed-ips {$allowed_ips}";
+        $wg_output = shell_exec($wg_command . ' 2>&1');
+
+        // Check if command was successful
+        if ($wg_output === null || empty(trim($wg_output))) {
+            // Command was successful (no output usually means success)
+            $success_message = "Peer added to WireGuard interface successfully";
+
+            // Save the configuration to make it persistent
+            $save_command = "sudo wg-quick save wg_{$actual_interface}";
+            shell_exec($save_command . ' 2>&1');
+
+            // Send Telegram notification if configured
+            if (function_exists('sendToTelegram')) {
+                $telegram_msg = "✅ WireGuard Peer Added\n";
+                $telegram_msg .= "========================\n";
+                $telegram_msg .= "Interface: wg_{$actual_interface}\n";
+                $telegram_msg .= "Peer Name: {$peer['name']}\n";
+                $telegram_msg .= "Public Key: " . substr($public_key, 0, 20) . "...\n";
+                $telegram_msg .= "Allowed IPs: {$allowed_ips}\n";
+                $telegram_msg .= "Command: {$wg_command}\n";
+                $telegram_msg .= "========================\n";
+                sendToTelegram($telegram_msg);
+            }
+        } else {
+            // Command failed, log the error but still mark as updated in DB
+            error_log("WireGuard command failed: " . $wg_output);
+            $success_message = "Public key updated in database, but failed to add to WireGuard interface: " . $wg_output;
+            if (function_exists('sendToTelegram')) {
+                $telegram_msg = "⚠️ WireGuard Peer Addition Failed\n";
+                $telegram_msg .= "========================\n";
+                $telegram_msg .= "Interface: wg_{$actual_interface}\n";
+                $telegram_msg .= "Peer Name: {$peer['name']}\n";
+                $telegram_msg .= "Public Key: " . substr($public_key, 0, 20) . "...\n";
+                $telegram_msg .= "Allowed IPs: {$allowed_ips}\n";
+                $telegram_msg .= "Command: {$wg_command}\n";
+                $telegram_msg .= "Error: {$wg_output}\n";
+                $telegram_msg .= "========================\n";
+                sendToTelegram($telegram_msg);
+            }
+        }
+        // Log activity
+        if ($auth && $user_id) {
+            $auth->logActivity(
+                $user_id,
+                'UPDATE_PEER_KEY',
+                "Updated public key for WireGuard peer: {$peer['name']} on interface {$interface}. Command: {$wg_command}",
+                $_SERVER['REMOTE_ADDR'] ?? '',
+                $_SERVER['HTTP_USER_AGENT'] ?? ''
+            );
+            // Send success response
+            http_response_code(200);
+            echo json_encode([
+                'success' => true,
+                'message' => $success_message,
+                'command' => $wg_command
+            ]);
+            exit;
+        }
+    } catch (Exception $e) {
+        error_log("Error updating public key: " . $e->getMessage());
+        header('Location: ../../wg-peers?interface=' . urlencode($interface) . '&error=Failed to update public key: ' . $e->getMessage());
+        exit;
+    }
+
+}
