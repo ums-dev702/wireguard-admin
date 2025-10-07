@@ -16,9 +16,20 @@ if (!is_authenticated()) {
 $peer_id = $_GET['peer_id'] ?? '';
 $interface = $_GET['interface'] ?? '';
 
-if (empty($peer_id) || empty($interface)) {
+// Debug logging
+error_log("MikroTik script request - peer_id: $peer_id, interface: $interface");
+
+if (empty($peer_id)) {
     http_response_code(400);
-    echo "# Error: Missing peer_id or interface parameter\n";
+    echo "# Error: Missing peer_id parameter\n";
+    echo "# Please provide a valid peer ID\n";
+    exit;
+}
+
+if (empty($interface)) {
+    http_response_code(400);
+    echo "# Error: Missing interface parameter\n";
+    echo "# Please select an interface first\n";
     exit;
 }
 
@@ -33,6 +44,7 @@ try {
     if (!$peer) {
         http_response_code(404);
         echo "# Error: Peer not found\n";
+        echo "# Peer ID '{$peer_id}' does not exist in database\n";
         exit;
     }
     
@@ -45,6 +57,8 @@ try {
     if (!$interface_info) {
         http_response_code(404);
         echo "# Error: Interface not found\n";
+        echo "# Interface '{$interface_name}' does not exist in database\n";
+        echo "# Available interfaces: " . implode(', ', get_available_interfaces()) . "\n";
         exit;
     }
     
@@ -94,6 +108,9 @@ try {
 } catch (Exception $e) {
     http_response_code(500);
     echo "# Error generating MikroTik script: " . $e->getMessage() . "\n";
+    echo "# File: " . $e->getFile() . "\n";
+    echo "# Line: " . $e->getLine() . "\n";
+    error_log("MikroTik script generation error: " . $e->getMessage() . " in " . $e->getFile() . " on line " . $e->getLine());
 }
 
 /**

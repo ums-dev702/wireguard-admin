@@ -998,23 +998,59 @@ try {
         const scriptContent = document.getElementById('mikrotikScriptContent');
         scriptContent.textContent = 'Loading script preview...';
         
+        // Validate parameters
+        if (!peerId) {
+            scriptContent.textContent = '# Error: No peer ID provided';
+            scriptContent.className = 'text-sm text-red-400 font-mono whitespace-pre-wrap';
+            return;
+        }
+        
         try {
-            const response = await fetch(`backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`);
-            if (response.ok) {
-                const scriptText = await response.text();
-                if (scriptText.startsWith('# Error:')) {
-                    scriptContent.textContent = scriptText;
-                    scriptContent.className = 'text-sm text-red-400 font-mono whitespace-pre-wrap';
-                } else {
-                    scriptContent.textContent = scriptText;
-                    scriptContent.className = 'text-sm text-gray-300 font-mono whitespace-pre-wrap';
-                }
+            // Check if interface is selected
+            const currentInterface = '<?= $current_interface ?>';
+            if (!currentInterface) {
+                throw new Error('No interface selected. Please select an interface first.');
+            }
+            
+            const url = `backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=${encodeURIComponent(currentInterface)}`;
+            console.log('Fetching MikroTik script from:', url);
+            
+            const response = await fetch(url);
+            console.log('Response status:', response.status);
+            console.log('Response headers:', Object.fromEntries(response.headers.entries()));
+            
+            if (!response.ok) {
+                const errorText = await response.text();
+                console.log('Error response text:', errorText);
+                throw new Error(`HTTP ${response.status}: ${response.statusText}\n${errorText}`);
+            }
+            
+            const scriptText = await response.text();
+            console.log('Script loaded successfully, length:', scriptText.length);
+            
+            if (scriptText.trim() === '') {
+                throw new Error('Empty response from server');
+            }
+            
+            if (scriptText.startsWith('# Error:')) {
+                scriptContent.textContent = scriptText;
+                scriptContent.className = 'text-sm text-red-400 font-mono whitespace-pre-wrap';
             } else {
-                throw new Error('Failed to load script');
+                scriptContent.textContent = scriptText;
+                scriptContent.className = 'text-sm text-gray-300 font-mono whitespace-pre-wrap';
             }
         } catch (error) {
-            console.error('Error loading MikroTik script:', error);
-            scriptContent.textContent = '# Error: Failed to load script preview\n# ' + error.message;
+            console.error('Detailed error loading MikroTik script:', error);
+            
+            let errorMessage = '# Error: Failed to load script preview\n';
+            errorMessage += `# ${error.message}\n\n`;
+            errorMessage += '# Troubleshooting steps:\n';
+            errorMessage += '# 1. Check if you are logged in\n';
+            errorMessage += '# 2. Verify the peer exists in database\n';
+            errorMessage += '# 3. Check browser console for detailed errors\n';
+            errorMessage += '# 4. Ensure interface is selected\n';
+            
+            scriptContent.textContent = errorMessage;
             scriptContent.className = 'text-sm text-red-400 font-mono whitespace-pre-wrap';
         }
     }
