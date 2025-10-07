@@ -709,7 +709,7 @@ try {
             </button>
         </div>
 
-        <form method="POST" id="editKeyForm" action="app/backend/wg_peer_backend.php" class="space-y-4">
+        <form method="POST" action="app/backend/wg_peer_backend.php" class="space-y-4">
             <input type="hidden" name="edit_public_key" value="1">
             <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
             <input type="hidden" name="peer_id" id="editKeyPeerId">
