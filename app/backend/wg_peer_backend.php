@@ -219,6 +219,8 @@ if(isset($_POST['save_public_key'])) {
     $public_key = trim($_POST['public_key'] ?? '');
     $user_id = $currentUser['id'] ?? null;
 
+     header('Location: ../wg-peers.php?interface=' . urlencode($interface) . '&error=INTERFACE.'.$interface.' PEER.'.$peer_id.' KEY.'.$public_key.' FAILED.'.$e->getMessage());
+
     if (empty($peer_id) || empty($public_key)) {
         header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Peer ID and public key are required');
         exit;
