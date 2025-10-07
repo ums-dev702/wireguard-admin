@@ -967,10 +967,8 @@ try {
 
     function generateMikroTikScript(peerId) {
         // Generate and download MikroTik RouterOS script
-        const currentPath = window.location.pathname;
-        const baseDir = currentPath.substring(0, currentPath.lastIndexOf('/')) + '/';
-        const url = `${baseDir}backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`;
-        
+        const url = window.location.origin + '/generate_mikrotik_script?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>';
+        console.log('Generating MikroTik script from URL:', url);
         // Create a temporary link to trigger download
         const link = document.createElement('a');
         link.href = url;
@@ -1018,9 +1016,9 @@ try {
             const currentPath = window.location.pathname;
             const baseDir = currentPath.substring(0, currentPath.lastIndexOf('/')) + '/';
             const url = `${baseDir}backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=${encodeURIComponent(currentInterface)}`;
-            console.log('Current path:', currentPath);
-            console.log('Base directory:', baseDir);
-            console.log('Fetching MikroTik script from:', url);
+          
+
+
             
             const response = await fetch(url);
             console.log('Response status:', response.status);
