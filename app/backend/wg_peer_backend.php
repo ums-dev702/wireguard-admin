@@ -319,7 +319,8 @@ if(isset($_POST['save_public_key'])) {
         }
     } catch (Exception $e) {
         error_log("Error updating public key: " . $e->getMessage());
-        header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Failed to update public key: ' . $e->getMessage());
+
+        header('Location: ../wg-peers.php?interface=' . urlencode($interface) . '&error=INTERFACE.'.$interface.' PEER.'.$peer_id.' KEY.'.$public_key.' FAILED.'.$e->getMessage());
         exit;
     }
 
