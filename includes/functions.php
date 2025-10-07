@@ -531,6 +531,34 @@ function is_port_completely_free(int $port): bool
 }
 
 /**
+ * Extract IP address from allowed IPs string (removes CIDR notation)
+ *
+ * @param string $allowed_ips The allowed IPs string (e.g., "10.0.0.2/32")
+ * @return string The IP address without CIDR (e.g., "10.0.0.2") or "N/A" if invalid
+ */
+function extract_peer_ip(string $allowed_ips): string
+{
+    if (empty($allowed_ips) || trim($allowed_ips) === '') {
+        return 'N/A';
+    }
+    
+    // Split by comma in case there are multiple allowed IPs
+    $ips = explode(',', $allowed_ips);
+    $first_ip = trim($ips[0]);
+    
+    // Extract IP part (before the slash)
+    $ip_parts = explode('/', $first_ip);
+    $ip = trim($ip_parts[0]);
+    
+    // Validate the IP
+    if (filter_var($ip, FILTER_VALIDATE_IP, FILTER_FLAG_IPV4)) {
+        return $ip;
+    }
+    
+    return 'N/A';
+}
+
+/**
  * Find a free UDP port in the given range.
  * Enhanced version that checks UFW, port forwarding, and socket binding
  *

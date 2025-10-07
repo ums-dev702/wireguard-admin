@@ -12,6 +12,38 @@ if (!in_array($current_interface, $available_interfaces)) {
     $current_interface = !empty($available_interfaces) ? $available_interfaces[0] : '';
 }
 
+?>
+
+<style>
+/* Custom styles for peer IP column */
+.peer-ip-cell {
+    background: rgba(59, 130, 246, 0.05);
+    border-left: 2px solid rgba(59, 130, 246, 0.3);
+}
+
+.peer-ip-text {
+    font-weight: 600;
+    letter-spacing: 0.025em;
+}
+
+.peer-ip-copy {
+    opacity: 0;
+    transition: opacity 0.2s ease;
+}
+
+.peer-ip-cell:hover .peer-ip-copy {
+    opacity: 1;
+}
+
+@media (max-width: 768px) {
+    .peer-ip-cell {
+        background: rgba(59, 130, 246, 0.08);
+    }
+}
+</style>
+
+<?php
+
 // Function to get next available IP for an interface
 function getNextAvailableIP($interface)
 {
@@ -436,17 +468,18 @@ try {
                 <thead class="bg-gray-800">
                     <tr>
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Name</th>
-                        <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Public Key</th>
-                        <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Allowed IPs</th>
+                        <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden md:table-cell">Public Key</th>
+                        <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Peer IP</th>
+                        <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden lg:table-cell">Allowed IPs</th>
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
-                        <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Created</th>
+                        <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden sm:table-cell">Created</th>
                         <th class="px-4 lg:px-6 py-3 text-right text-xs font-medium text-gray-300 uppercase tracking-wider">Actions</th>
                     </tr>
                 </thead>
                 <tbody class="divide-y divide-gray-600">
                     <?php if (empty($peers)): ?>
                         <tr>
-                            <td colspan="6" class="px-4 lg:px-6 py-8 text-center text-gray-400">
+                            <td colspan="7" class="px-4 lg:px-6 py-8 text-center text-gray-400">
                                 <i class="fas fa-users-slash text-4xl mb-3 block"></i>
                                 <p class="text-lg mb-2">No peers configured</p>
                                 <p class="text-sm">Create your first VPN peer to get started.</p>
@@ -468,7 +501,7 @@ try {
                                         </div>
                                     </div>
                                 </td>
-                                <td class="px-4 lg:px-6 py-4">
+                                <td class="px-4 lg:px-6 py-4 hidden md:table-cell">
                                     <div class="text-sm text-gray-300 font-mono">
                                         <?php if (!empty($peer['public_key'])): ?>
                                             <span title="<?= htmlspecialchars($peer['public_key']) ?>">
@@ -492,7 +525,26 @@ try {
                                     </div>
                                 </td>
 
-                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-300">
+                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-300 peer-ip-cell">
+                                    <?php 
+                                    // Extract IP without /32 suffix using the helper function
+                                    $peer_ip = extract_peer_ip($peer['allowed_ips'] ?? '');
+                                    $full_allowed_ips = $peer['allowed_ips'] ?? 'N/A';
+                                    ?>
+                                    <div class="flex items-center">
+                                        <span class="font-mono text-blue-300 peer-ip-text" 
+                                              title="Full allowed IPs: <?= htmlspecialchars($full_allowed_ips) ?>"><?= htmlspecialchars($peer_ip) ?></span>
+                                        <?php if ($peer_ip !== 'N/A'): ?>
+                                            <button onclick="copyToClipboard('<?= htmlspecialchars($peer_ip) ?>')"
+                                                class="ml-2 text-gray-400 hover:text-white transition-colors peer-ip-copy"
+                                                title="Copy IP address">
+                                                <i class="fas fa-copy text-xs"></i>
+                                            </button>
+                                        <?php endif; ?>
+                                    </div>
+                                </td>
+
+                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-300 hidden lg:table-cell">
                                     <?= htmlspecialchars($peer['allowed_ips'] ?? 'N/A') ?>
                                 </td>
                                 <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
@@ -504,7 +556,7 @@ try {
                                         <?= ucfirst($status) ?>
                                     </span>
                                 </td>
-                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-400">
+                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell">
                                     <?php if (isset($peer['created_at'])): ?>
                                         <?= date('M j, Y', strtotime($peer['created_at'])) ?>
                                     <?php else: ?>
