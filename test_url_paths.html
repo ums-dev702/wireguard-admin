@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>URL Path Test</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+</head>
+<body class="bg-gray-100 p-8">
+    <div class="max-w-4xl mx-auto">
+        <h1 class="text-2xl font-bold mb-4">URL Path Debugging</h1>
+        
+        <div class="bg-white p-6 rounded-lg shadow mb-4">
+            <h2 class="text-lg font-semibold mb-4">Current URL Information</h2>
+            <div class="space-y-2 font-mono text-sm">
+                <div><strong>Full URL:</strong> <span id="fullUrl"></span></div>
+                <div><strong>Protocol:</strong> <span id="protocol"></span></div>
+                <div><strong>Host:</strong> <span id="host"></span></div>
+                <div><strong>Port:</strong> <span id="port"></span></div>
+                <div><strong>Pathname:</strong> <span id="pathname"></span></div>
+                <div><strong>Base Directory:</strong> <span id="baseDir"></span></div>
+            </div>
+        </div>
+        
+        <div class="bg-white p-6 rounded-lg shadow mb-4">
+            <h2 class="text-lg font-semibold mb-4">Possible MikroTik Script URLs</h2>
+            <div class="space-y-2">
+                <button onclick="testUrl('backend/generate_mikrotik_script.php')" class="block w-full text-left px-3 py-2 bg-blue-100 rounded hover:bg-blue-200">
+                    Relative: backend/generate_mikrotik_script.php
+                </button>
+                <button onclick="testUrl('./backend/generate_mikrotik_script.php')" class="block w-full text-left px-3 py-2 bg-blue-100 rounded hover:bg-blue-200">
+                    Current dir: ./backend/generate_mikrotik_script.php
+                </button>
+                <button onclick="testUrl('app/backend/generate_mikrotik_script.php')" class="block w-full text-left px-3 py-2 bg-blue-100 rounded hover:bg-blue-200">
+                    From root: app/backend/generate_mikrotik_script.php
+                </button>
+                <button onclick="testUrl('/app/backend/generate_mikrotik_script.php')" class="block w-full text-left px-3 py-2 bg-blue-100 rounded hover:bg-blue-200">
+                    Absolute: /app/backend/generate_mikrotik_script.php
+                </button>
+            </div>
+        </div>
+        
+        <div id="result" class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm hidden">
+            <h3 class="text-white mb-2">Test Result:</h3>
+            <pre id="output"></pre>
+        </div>
+        
+        <div id="error" class="bg-red-900 text-red-400 p-4 rounded-lg font-mono text-sm hidden">
+            <h3 class="text-white mb-2">Error:</h3>
+            <pre id="errorOutput"></pre>
+        </div>
+    </div>
+
+    <script>
+        // Display current URL information
+        document.getElementById('fullUrl').textContent = window.location.href;
+        document.getElementById('protocol').textContent = window.location.protocol;
+        document.getElementById('host').textContent = window.location.host;
+        document.getElementById('port').textContent = window.location.port || 'default';
+        document.getElementById('pathname').textContent = window.location.pathname;
+        
+        const currentPath = window.location.pathname;
+        const baseDir = currentPath.substring(0, currentPath.lastIndexOf('/')) + '/';
+        document.getElementById('baseDir').textContent = baseDir;
+        
+        async function testUrl(relativePath) {
+            const resultDiv = document.getElementById('result');
+            const errorDiv = document.getElementById('error');
+            const output = document.getElementById('output');
+            const errorOutput = document.getElementById('errorOutput');
+            
+            // Hide previous results
+            resultDiv.classList.add('hidden');
+            errorDiv.classList.add('hidden');
+            
+            // Build the test URL
+            let testUrl;
+            if (relativePath.startsWith('/')) {
+                testUrl = relativePath;
+            } else if (relativePath.startsWith('./')) {
+                testUrl = baseDir + relativePath.substring(2);
+            } else {
+                testUrl = baseDir + relativePath;
+            }
+            
+            console.log('Testing URL:', testUrl);
+            
+            try {
+                const response = await fetch(testUrl + '?peer_id=1&interface=test');
+                
+                let resultText = `URL: ${testUrl}\n`;
+                resultText += `Status: ${response.status} ${response.statusText}\n`;
+                resultText += `Headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()), null, 2)}\n\n`;
+                
+                if (response.ok) {
+                    const text = await response.text();
+                    resultText += `Response:\n${text.substring(0, 500)}${text.length > 500 ? '...' : ''}`;
+                    output.textContent = resultText;
+                    resultDiv.classList.remove('hidden');
+                } else {
+                    const errorText = await response.text();
+                    resultText += `Error Response:\n${errorText.substring(0, 500)}${errorText.length > 500 ? '...' : ''}`;
+                    errorOutput.textContent = resultText;
+                    errorDiv.classList.remove('hidden');
+                }
+                
+            } catch (error) {
+                const errorText = `URL: ${testUrl}\nError: ${error.message}`;
+                errorOutput.textContent = errorText;
+                errorDiv.classList.remove('hidden');
+            }
+        }
+    </script>
+</body>
+</html>

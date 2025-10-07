@@ -967,7 +967,9 @@ try {
 
     function generateMikroTikScript(peerId) {
         // Generate and download MikroTik RouterOS script
-        const url = `backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`;
+        const currentPath = window.location.pathname;
+        const baseDir = currentPath.substring(0, currentPath.lastIndexOf('/')) + '/';
+        const url = `${baseDir}backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=<?= urlencode($current_interface) ?>`;
         
         // Create a temporary link to trigger download
         const link = document.createElement('a');
@@ -1012,7 +1014,12 @@ try {
                 throw new Error('No interface selected. Please select an interface first.');
             }
             
-            const url = `backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=${encodeURIComponent(currentInterface)}`;
+            // Build absolute URL for better compatibility
+            const currentPath = window.location.pathname;
+            const baseDir = currentPath.substring(0, currentPath.lastIndexOf('/')) + '/';
+            const url = `${baseDir}backend/generate_mikrotik_script.php?peer_id=${peerId}&interface=${encodeURIComponent(currentInterface)}`;
+            console.log('Current path:', currentPath);
+            console.log('Base directory:', baseDir);
             console.log('Fetching MikroTik script from:', url);
             
             const response = await fetch(url);
