@@ -218,9 +218,7 @@ if(isset($_POST['save_public_key'])) {
     $peer_id = $_POST['peer_id'] ?? '';
     $public_key = trim($_POST['public_key'] ?? '');
     $user_id = $currentUser['id'] ?? null;
-
     echo json_encode(['success' => false, 'message' => 'Feature temporarily disabled', 'interface' => $interface, 'peer_id' => $peer_id, 'public_key' => $public_key, 'user_id' => $user_id]);
-
     // if (empty($peer_id) || empty($public_key)) {
     //     header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&error=Peer ID and public key are required');
     //     exit;
