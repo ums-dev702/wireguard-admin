@@ -652,7 +652,7 @@ try {
                 </div>
             </div>
         <?php else: ?>
-            <form method="POST" id="createPeerForm" action="app/backend/wg_peer_backend.php" class="space-y-4">
+            <form method="POST" id="createPeerForm" action="/app/backend/wg_peer_backend.php" class="space-y-4">
                 <div class="space-y-4">
                     <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
                     <input type="hidden" name="user_id" value="<?= htmlspecialchars($currentUser['id'] ?? '') ?>">
@@ -757,7 +757,7 @@ try {
 </div>
 
 <!-- Delete Peer Form (hidden) -->
-<form id="deletePeerForm" method="POST" action="backend/wg_peer_backend.php" style="display: none;">
+<form id="deletePeerForm" method="POST" action="app/backend/wg_peer_backend.php" style="display: none;">
     <input type="hidden" name="delete_peer" value="1">
     <input type="hidden" name="interface" value="<?= htmlspecialchars($current_interface) ?>">
     <input type="hidden" name="peer_id" id="deletePeerId">
