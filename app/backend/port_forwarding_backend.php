@@ -9,7 +9,42 @@ if (!is_authenticated()) {
     exit;
 }
 
+// Set JSON header immediately
 header('Content-Type: application/json');
+
+// Ensure port_forwarding_rules table exists
+function ensure_port_forwarding_table() {
+    $db = get_db();
+    
+    try {
+        $sql = "CREATE TABLE IF NOT EXISTS port_forwarding_rules (
+            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
+            peer_id INT UNSIGNED NOT NULL,
+            service_name VARCHAR(255) NOT NULL,
+            external_port INT NOT NULL,
+            internal_port INT NOT NULL,
+            protocol ENUM('tcp', 'udp', 'both') DEFAULT 'tcp',
+            description TEXT NULL,
+            status ENUM('active', 'inactive') DEFAULT 'active',
+            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+            updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
+            FOREIGN KEY (peer_id) REFERENCES wg_peers(id) ON DELETE CASCADE,
+            UNIQUE KEY unique_external_port (external_port, protocol)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
+        
+        $db->exec($sql);
+    } catch (PDOException $e) {
+        error_log('Error creating port_forwarding_rules table: ' . $e->getMessage());
+        // Don't throw - just log and continue
+    }
+}
+
+// Ensure table exists before processing
+try {
+    ensure_port_forwarding_table();
+} catch (Exception $e) {
+    error_log('Failed to ensure port_forwarding_rules table: ' . $e->getMessage());
+}
 
 $db = get_db();
 $action = $_POST['action'] ?? '';
@@ -215,32 +250,3 @@ try {
     ]);
 }
 
-// Create port_forwarding_rules table if it doesn't exist
-function ensure_port_forwarding_table() {
-    $db = get_db();
-    
-    try {
-        $sql = "CREATE TABLE IF NOT EXISTS port_forwarding_rules (
-            id INT UNSIGNED NOT NULL AUTO_INCREMENT PRIMARY KEY,
-            peer_id INT UNSIGNED NOT NULL,
-            service_name VARCHAR(255) NOT NULL,
-            external_port INT NOT NULL,
-            internal_port INT NOT NULL,
-            protocol ENUM('tcp', 'udp', 'both') DEFAULT 'tcp',
-            description TEXT NULL,
-            status ENUM('active', 'inactive') DEFAULT 'active',
-            created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
-            updated_at DATETIME NULL ON UPDATE CURRENT_TIMESTAMP,
-            FOREIGN KEY (peer_id) REFERENCES wg_peers(id) ON DELETE CASCADE,
-            UNIQUE KEY unique_external_port (external_port, protocol)
-        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
-        
-        $db->exec($sql);
-    } catch (PDOException $e) {
-        error_log('Error creating port_forwarding_rules table: ' . $e->getMessage());
-        throw $e;
-    }
-}
-
-// Ensure table exists
-ensure_port_forwarding_table();
