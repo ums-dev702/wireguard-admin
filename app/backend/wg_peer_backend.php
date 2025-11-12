@@ -85,6 +85,10 @@ if (isset($_POST['delete_peer'])) {
                 $_SERVER['HTTP_USER_AGENT'] ?? ''
             );
         }
+
+        //DELETE ON DB IS HANDLED IN deletePeer METHOD
+        
+
         
         header('Location: ../../wg_peers?interface=' . urlencode($interface) . '&success=Peer deleted successfully');
         exit;
