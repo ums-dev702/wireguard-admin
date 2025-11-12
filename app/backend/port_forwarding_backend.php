@@ -95,12 +95,6 @@ try {
                 ];
             }
             
-            // Add UFW rule
-            $ufw_cmd = "sudo /usr/sbin/ufw allow {$external_port}/{$protocol}";
-            shell_exec($ufw_cmd);
-            
-            // Make rules persistent using iptables-save and tee
-            shell_exec('sudo /usr/sbin/iptables-save | sudo /bin/tee /etc/iptables/rules.v4 > /dev/null 2>&1');
             
             // Save to database
             $stmt = $db->prepare('
@@ -174,10 +168,7 @@ try {
             foreach ($commands as $cmd) {
                 shell_exec($cmd . ' 2>&1');
             }
-            
-            // Make rules persistent using iptables-save and tee
-            shell_exec('sudo /usr/sbin/iptables-save | sudo /bin/tee /etc/iptables/rules.v4 > /dev/null 2>&1');
-            
+
             // Delete from database
             $stmt = $db->prepare('DELETE FROM port_forwarding_rules WHERE id = ?');
             $stmt->execute([$rule_id]);
