@@ -502,6 +502,7 @@ try {
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden md:table-cell">Public Key</th>
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Peer IP</th>
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden lg:table-cell">Allowed IPs</th>
+                        <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Connection</th>
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider">Status</th>
                         <th class="px-4 lg:px-6 py-3 text-center text-xs font-medium text-gray-300 uppercase tracking-wider hidden md:table-cell">MikroTik</th>
                         <th class="px-4 lg:px-6 py-3 text-left text-xs font-medium text-gray-300 uppercase tracking-wider hidden sm:table-cell">Created</th>
@@ -511,7 +512,7 @@ try {
                 <tbody class="divide-y divide-gray-600">
                     <?php if (empty($peers)): ?>
                         <tr>
-                            <td colspan="8" class="px-4 lg:px-6 py-8 text-center text-gray-400">
+                            <td colspan="9" class="px-4 lg:px-6 py-8 text-center text-gray-400">
                                 <i class="fas fa-users-slash text-4xl mb-3 block"></i>
                                 <p class="text-lg mb-2">No peers configured</p>
                                 <p class="text-sm">Create your first VPN peer to get started.</p>
@@ -582,6 +583,16 @@ try {
                                 <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-300 hidden lg:table-cell">
                                     <?= htmlspecialchars($peer['allowed_ips'] ?? 'N/A') ?>
                                 </td>
+                                
+                                <!-- Connection Status Column -->
+                                <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
+                                    <div class="flex items-center">
+                                        <span id="connection-status-<?= $peer['id'] ?>" class="px-2 py-1 rounded-full text-xs font-medium bg-gray-500 bg-opacity-10 text-gray-400">
+                                            <i class="fas fa-circle-notch fa-spin mr-1"></i>Checking...
+                                        </span>
+                                    </div>
+                                </td>
+                                
                                 <td class="px-4 lg:px-6 py-4 whitespace-nowrap">
                                     <?php
                                     $status = $peer['status'] ?? 'active';
@@ -1536,6 +1547,85 @@ try {
         return null;
     }
 
+    // Peer Connection Status Checker
+    // This checks peers one by one asynchronously to avoid blocking the page
+    const peersToCheck = [];
+    
+    <?php if (!empty($peers)): ?>
+        <?php foreach ($peers as $peer): ?>
+            <?php 
+            $peer_ip = extract_peer_ip($peer['allowed_ips'] ?? '');
+            if ($peer_ip !== 'N/A'):
+            ?>
+            peersToCheck.push({
+                id: <?= $peer['id'] ?>,
+                ip: '<?= htmlspecialchars($peer_ip) ?>'
+            });
+            <?php endif; ?>
+        <?php endforeach; ?>
+    <?php endif; ?>
+    
+    let currentCheckIndex = 0;
+    let checkInProgress = false;
+    
+    async function checkPeerStatus(peerId, peerIP) {
+        const statusElement = document.getElementById(`connection-status-${peerId}`);
+        if (!statusElement) return;
+
+        const peer_ip_ping_url = window.location.origin + '/check_peer_status.php?peer_ip=' + encodeURIComponent(peerIP);
+        
+        try {
+            const response = await fetch(peer_ip_ping_url, {
+                method: 'GET',
+                signal: AbortSignal.timeout(3000) // 3 second timeout
+            });
+            
+            if (response.ok) {
+                const data = await response.json();
+                
+                if (data.success && data.online) {
+                    statusElement.innerHTML = '<i class="fas fa-circle text-green-400 mr-1"></i>Online';
+                    statusElement.className = 'px-2 py-1 rounded-full text-xs font-medium bg-green-500 bg-opacity-10 text-green-400';
+                } else {
+                    statusElement.innerHTML = '<i class="fas fa-circle text-red-400 mr-1"></i>Offline';
+                    statusElement.className = 'px-2 py-1 rounded-full text-xs font-medium bg-red-500 bg-opacity-10 text-red-400';
+                }
+            } else {
+                throw new Error('Failed to check status');
+            }
+        } catch (error) {
+            // Timeout or error - mark as offline
+            statusElement.innerHTML = '<i class="fas fa-circle text-gray-400 mr-1"></i>Unknown';
+            statusElement.className = 'px-2 py-1 rounded-full text-xs font-medium bg-gray-500 bg-opacity-10 text-gray-400';
+        }
+    }
+    
+    // Check peers sequentially with a small delay between each
+    async function checkNextPeer() {
+        if (currentCheckIndex >= peersToCheck.length || checkInProgress) {
+            return;
+        }
+        
+        checkInProgress = true;
+        const peer = peersToCheck[currentCheckIndex];
+        
+        await checkPeerStatus(peer.id, peer.ip);
+        
+        currentCheckIndex++;
+        checkInProgress = false;
+        
+        // Small delay before checking next peer (200ms)
+        if (currentCheckIndex < peersToCheck.length) {
+            setTimeout(checkNextPeer, 200);
+        }
+    }
+    
+    // Start checking peers when page loads
+    document.addEventListener('DOMContentLoaded', function() {
+        if (peersToCheck.length > 0) {
+            checkNextPeer();
+        }
+    });
 
     // Auto-generate IP when interface changes
     <?php if (!empty($current_interface)): ?>
