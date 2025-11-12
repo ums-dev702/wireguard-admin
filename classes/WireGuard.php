@@ -324,13 +324,9 @@ class WireGuard
             // Remove all port forwarding rules for this peer
             $this->removePortForwardingRules($peerId);
 
-            // Mark as inactive in database
-            $this->db->update(
-                'wg_peers',
-                ['status' => 'inactive'],
-                'id = ?',
-                [$peerId]
-            );
+            // Mark as inactive in database using named parameters
+            $sql = "UPDATE wg_peers SET status = 'inactive' WHERE id = ?";
+            $this->db->query($sql, [$peerId]);
 
             $this->db->commit();
             return true;
@@ -590,13 +586,9 @@ class WireGuard
             // Save iptables rules
             shell_exec("sudo netfilter-persistent save 2>&1");
 
-            // Mark rules as inactive in database
-            $this->db->update(
-                'port_forwarding_rules',
-                ['status' => 'inactive'],
-                'peer_id = ?',
-                [$peerId]
-            );
+            // Mark rules as inactive in database using direct query
+            $sql = "UPDATE port_forwarding_rules SET status = 'inactive' WHERE peer_id = ?";
+            $this->db->query($sql, [$peerId]);
 
             error_log("Successfully removed all port forwarding rules for peer {$peerId}");
         } catch (\Exception $e) {
