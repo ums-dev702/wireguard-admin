@@ -34,6 +34,7 @@ $routes = [
     '/port_forwarding' => 'backend/port_forwarding_backend.php',
     '/manage_port_forwarding' => 'port_forwarding.php',
     '/check_peer_status' => 'backend/check_peer_status.php',
+    '/remove_port_forward' => 'backend/port_forwarding_backend.php',
 ];
 
 // Get request path (without query string)
