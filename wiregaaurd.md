@@ -478,6 +478,8 @@ This grants the wg command the ability to modify network settings (i.e., WireGua
 
 VISUDO
 
+vi
+
 ```bash
 www-data ALL=(ALL) NOPASSWD: /usr/bin/wg set
 www-data ALL=(ALL) NOPASSWD: ALL

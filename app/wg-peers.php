@@ -599,11 +599,6 @@ try {
                                             title="Preview MikroTik script">
                                             <i class="fas fa-eye"></i>
                                         </button>
-                                        <button onclick="generateMikroTikScript(<?= $peer['id'] ?>)"
-                                            class="px-2 py-1 bg-orange-700 hover:bg-orange-800 text-white rounded text-xs transition-colors"
-                                            title="Download MikroTik script">
-                                            <i class="fas fa-download"></i>
-                                        </button>
                                     </div>
                                 </td>
                                 <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-sm text-gray-400 hidden sm:table-cell">
@@ -615,6 +610,17 @@ try {
                                 </td>
                                 <td class="px-4 lg:px-6 py-4 whitespace-nowrap text-right text-sm">
                                     <div class="flex justify-end gap-2">
+                                        <button onclick="showQuickPortForwardModal(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['name'] ?? 'Unnamed', ENT_QUOTES) ?>', '<?= htmlspecialchars($peer_ip) ?>')"
+                                            class="px-3 py-1 bg-green-600 hover:bg-green-700 text-white rounded text-xs transition-colors"
+                                            title="Quick Port Forward"
+                                            <?= $peer_ip === 'N/A' ? 'disabled' : '' ?>>
+                                            <i class="fas fa-plus mr-1"></i>Forward
+                                        </button>
+                                        <a href="port_forwarding.php?peer_id=<?= $peer['id'] ?>"
+                                            class="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs transition-colors"
+                                            title="Manage Port Forwarding">
+                                            <i class="fas fa-network-wired mr-1"></i>Manage
+                                        </a>
                                         <button onclick="deletePeer(<?= $peer['id'] ?>, '<?= htmlspecialchars($peer['name'] ?? 'Unnamed', ENT_QUOTES) ?>')"
                                             class="px-3 py-1 bg-red-600 hover:bg-red-700 text-white rounded text-xs transition-colors"
                                             title="Delete peer">
@@ -818,6 +824,133 @@ try {
                 </div>
             </div>
         </div>
+    </div>
+</div>
+
+<!-- Quick Port Forward Modal -->
+<div id="quickPortForwardModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50 flex items-center justify-center">
+    <div class="glass-card p-6 max-w-md w-full mx-4">
+        <div class="flex justify-between items-center mb-4">
+            <div>
+                <h3 class="text-lg font-semibold text-white">Quick Port Forward</h3>
+                <p class="text-sm text-gray-400">
+                    Peer: <span id="quickPFPeerName" class="text-blue-400 font-medium"></span>
+                    (<span id="quickPFPeerIP" class="text-green-400 font-mono"></span>)
+                </p>
+            </div>
+            <button onclick="hideQuickPortForwardModal()" class="text-gray-400 hover:text-white">
+                <i class="fas fa-times"></i>
+            </button>
+        </div>
+
+        <form id="quickPortForwardForm" class="space-y-4">
+            <input type="hidden" id="quickPFPeerId" name="peer_id">
+            <input type="hidden" id="quickPFPeerIPValue" name="peer_ip">
+
+            <!-- Service Selection -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    <i class="fas fa-server mr-1"></i>Service Template
+                </label>
+                <select id="serviceTemplate" onchange="loadServiceTemplate()" 
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500">
+                    <option value="">-- Select a template or create custom --</option>
+                    <option value="winbox">MikroTik Winbox (8291)</option>
+                    <option value="ssh">SSH Access (22)</option>
+                    <option value="http">Web Server HTTP (80)</option>
+                    <option value="https">Web Server HTTPS (443)</option>
+                    <option value="rdp">Remote Desktop (3389)</option>
+                    <option value="mysql">MySQL Database (3306)</option>
+                    <option value="custom">Custom Service</option>
+                </select>
+            </div>
+
+            <!-- Service Name -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Service Name
+                </label>
+                <input type="text" id="quickPFServiceName" required
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Winbox Access">
+            </div>
+
+            <!-- External Port -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    External Port (on VPS)
+                    <span class="text-xs text-gray-500">- What port to expose publicly</span>
+                </label>
+                <input type="number" id="quickPFExternalPort" required min="1" max="65535"
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., 6545">
+                <p class="text-xs text-gray-500 mt-1">Access via: your-vps-ip:<span id="externalPortPreview">XXXX</span></p>
+            </div>
+
+            <!-- Internal Port -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Internal Port (on peer device)
+                    <span class="text-xs text-gray-500">- Port where service runs</span>
+                </label>
+                <input type="number" id="quickPFInternalPort" required min="1" max="65535"
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., 8291">
+                <p class="text-xs text-gray-500 mt-1">Connects to: <span id="internalIPPreview">peer-ip</span>:<span id="internalPortPreview">XXXX</span></p>
+            </div>
+
+            <!-- Protocol -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Protocol
+                </label>
+                <div class="flex gap-4">
+                    <label class="flex items-center">
+                        <input type="radio" name="protocol" value="tcp" checked
+                            class="mr-2 text-blue-600 focus:ring-blue-500">
+                        <span class="text-white">TCP</span>
+                    </label>
+                    <label class="flex items-center">
+                        <input type="radio" name="protocol" value="udp"
+                            class="mr-2 text-blue-600 focus:ring-blue-500">
+                        <span class="text-white">UDP</span>
+                    </label>
+                </div>
+            </div>
+
+            <!-- Description -->
+            <div>
+                <label class="block text-sm font-medium text-gray-300 mb-2">
+                    Description (optional)
+                </label>
+                <input type="text" id="quickPFDescription"
+                    class="w-full px-3 py-2 bg-gray-800 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-blue-500"
+                    placeholder="e.g., Remote management access">
+            </div>
+
+            <!-- Preview -->
+            <div class="bg-blue-500 bg-opacity-10 border border-blue-500 rounded-lg p-3">
+                <div class="flex items-start">
+                    <i class="fas fa-info-circle text-blue-400 mr-2 mt-0.5"></i>
+                    <div class="text-sm text-blue-300">
+                        <strong>What will happen:</strong>
+                        <p class="mt-1">External traffic to <span class="font-mono text-blue-200">VPS:<span id="extPortInfo">XXXX</span></span> 
+                        will be forwarded to <span class="font-mono text-blue-200"><span id="peerIPInfo">peer-ip</span>:<span id="intPortInfo">XXXX</span></span></p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex justify-end gap-3 mt-6">
+                <button type="button" onclick="hideQuickPortForwardModal()"
+                    class="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors">
+                    Cancel
+                </button>
+                <button type="submit"
+                    class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
+                    <i class="fas fa-play mr-2"></i>Apply Port Forward
+                </button>
+            </div>
+        </form>
     </div>
 </div>
 
@@ -1110,6 +1243,184 @@ try {
             hideCreatePeerModal();
             hideEditKeyModal();
             hideMikroTikPreview();
+            hideQuickPortForwardModal();
+        }
+    });
+
+    // Quick Port Forward Modal Functions
+    function showQuickPortForwardModal(peerId, peerName, peerIP) {
+        document.getElementById('quickPFPeerId').value = peerId;
+        document.getElementById('quickPFPeerName').textContent = peerName;
+        document.getElementById('quickPFPeerIP').textContent = peerIP;
+        document.getElementById('quickPFPeerIPValue').value = peerIP;
+        
+        // Update preview
+        document.getElementById('internalIPPreview').textContent = peerIP;
+        document.getElementById('peerIPInfo').textContent = peerIP;
+        
+        // Reset form
+        document.getElementById('quickPortForwardForm').reset();
+        document.getElementById('serviceTemplate').value = '';
+        
+        // Show modal
+        document.getElementById('quickPortForwardModal').classList.remove('hidden');
+    }
+
+    function hideQuickPortForwardModal() {
+        document.getElementById('quickPortForwardModal').classList.add('hidden');
+        document.getElementById('quickPortForwardForm').reset();
+    }
+
+    // Load service template
+    function loadServiceTemplate() {
+        const template = document.getElementById('serviceTemplate').value;
+        const templates = {
+            'winbox': { name: 'MikroTik Winbox', external: 6545, internal: 8291, protocol: 'tcp', desc: 'MikroTik Winbox management' },
+            'ssh': { name: 'SSH Access', external: 2222, internal: 22, protocol: 'tcp', desc: 'SSH remote access' },
+            'http': { name: 'Web Server HTTP', external: 8080, internal: 80, protocol: 'tcp', desc: 'HTTP web interface' },
+            'https': { name: 'Web Server HTTPS', external: 8443, internal: 443, protocol: 'tcp', desc: 'HTTPS web interface' },
+            'rdp': { name: 'Remote Desktop', external: 3389, internal: 3389, protocol: 'tcp', desc: 'Windows Remote Desktop' },
+            'mysql': { name: 'MySQL Database', external: 3306, internal: 3306, protocol: 'tcp', desc: 'MySQL database access' }
+        };
+
+        if (template && templates[template]) {
+            const t = templates[template];
+            document.getElementById('quickPFServiceName').value = t.name;
+            document.getElementById('quickPFExternalPort').value = t.external;
+            document.getElementById('quickPFInternalPort').value = t.internal;
+            document.getElementById('quickPFDescription').value = t.desc;
+            document.querySelector(`input[name="protocol"][value="${t.protocol}"]`).checked = true;
+            
+            updatePortPreviews();
+        } else if (template === 'custom') {
+            document.getElementById('quickPFServiceName').value = '';
+            document.getElementById('quickPFExternalPort').value = '';
+            document.getElementById('quickPFInternalPort').value = '';
+            document.getElementById('quickPFDescription').value = '';
+        }
+    }
+
+    // Update port previews
+    function updatePortPreviews() {
+        const externalPort = document.getElementById('quickPFExternalPort').value || 'XXXX';
+        const internalPort = document.getElementById('quickPFInternalPort').value || 'XXXX';
+        const peerIP = document.getElementById('quickPFPeerIPValue').value || 'peer-ip';
+        
+        document.getElementById('externalPortPreview').textContent = externalPort;
+        document.getElementById('internalPortPreview').textContent = internalPort;
+        document.getElementById('extPortInfo').textContent = externalPort;
+        document.getElementById('intPortInfo').textContent = internalPort;
+        document.getElementById('peerIPInfo').textContent = peerIP;
+    }
+
+    // Add event listeners for port inputs
+    document.getElementById('quickPFExternalPort')?.addEventListener('input', updatePortPreviews);
+    document.getElementById('quickPFInternalPort')?.addEventListener('input', updatePortPreviews);
+
+    // Handle quick port forward form submission
+    document.getElementById('quickPortForwardForm')?.addEventListener('submit', async function(e) {
+        e.preventDefault();
+        
+        const peerId = document.getElementById('quickPFPeerId').value;
+        const serviceName = document.getElementById('quickPFServiceName').value;
+        const externalPort = document.getElementById('quickPFExternalPort').value;
+        const internalPort = document.getElementById('quickPFInternalPort').value;
+        const protocol = document.querySelector('input[name="protocol"]:checked').value;
+        const description = document.getElementById('quickPFDescription').value;
+        
+        if (!peerId || !serviceName || !externalPort || !internalPort) {
+            showNotification('Please fill in all required fields', 'error');
+            return;
+        }
+        
+        // Confirm before applying
+        if (!confirm(`Apply port forwarding?\n\n${serviceName}\nExternal: ${externalPort} → Internal: ${internalPort}\nProtocol: ${protocol.toUpperCase()}\n\nThis will configure iptables and firewall rules.`)) {
+            return;
+        }
+        
+        // Show loading state
+        const submitBtn = this.querySelector('button[type="submit"]');
+        const originalHTML = submitBtn.innerHTML;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin mr-2"></i>Applying...';
+        submitBtn.disabled = true;
+        
+        try {
+            const formData = new FormData();
+            formData.append('action', 'add_port_forward');
+            formData.append('peer_id', peerId);
+            formData.append('service_name', serviceName);
+            formData.append('external_port', externalPort);
+            formData.append('internal_port', internalPort);
+            formData.append('protocol', protocol);
+            formData.append('description', description);
+            
+            const response = await fetch('backend/port_forwarding_backend.php', {
+                method: 'POST',
+                body: formData
+            });
+            
+            const result = await response.json();
+            
+            if (result.success) {
+                showNotification(`✅ Port forwarding applied successfully!\n${serviceName}: ${externalPort} → ${internalPort}`, 'success');
+                hideQuickPortForwardModal();
+                
+                // Show success details
+                setTimeout(() => {
+                    const details = `Port forwarding is now active:\n\n` +
+                                  `Service: ${serviceName}\n` +
+                                  `Access via: your-vps-ip:${externalPort}\n` +
+                                  `Forwards to: ${document.getElementById('quickPFPeerIPValue').value}:${internalPort}\n\n` +
+                                  `You can manage all rules via the "Manage" button.`;
+                    alert(details);
+                }, 500);
+            } else {
+                showNotification('Error: ' + result.message, 'error');
+            }
+            
+        } catch (error) {
+            console.error('Error applying port forward:', error);
+            showNotification('Error: ' + error.message, 'error');
+        } finally {
+            submitBtn.innerHTML = originalHTML;
+            submitBtn.disabled = false;
+        }
+    });
+
+    // Close quick port forward modal when clicking outside
+    document.getElementById('quickPortForwardModal')?.addEventListener('click', function(e) {
+        if (e.target === this) {
+            hideQuickPortForwardModal();
+        }
+    });
+
+    // Show notification
+    function showNotification(message, type = 'info') {
+        const colors = {
+            success: 'bg-green-600',
+            error: 'bg-red-600',
+            info: 'bg-blue-600'
+        };
+        
+        const toast = document.createElement('div');
+        toast.className = `fixed top-4 right-4 ${colors[type]} text-white px-6 py-3 rounded-lg shadow-lg z-50 transition-opacity max-w-md`;
+        toast.style.whiteSpace = 'pre-line';
+        toast.textContent = message;
+        document.body.appendChild(toast);
+        
+        setTimeout(() => {
+            toast.style.opacity = '0';
+            setTimeout(() => toast.remove(), 300);
+        }, 4000);
+    }
+
+    // Close modal with Escape key
+    document.addEventListener('keydown', function(e) {
+        if (e.key === 'Escape') {
+            hideCreatePeerModal();
+            hideEditKeyModal();
+            hideMikroTikPreview();
+            hideQuickPortForwardModal();
         }
     });
 

@@ -565,3 +565,9 @@ sudo a2enmod rewrite
 ```bash
 sudo systemctl restart apache2
 ```
+
+Give permissions to data directory TO /etc/wireguard/
+
+```bash
+sudo chmod 775 /etc/wireguard/ && sudo chown www-data:www-data /etc/wireguard/
+```
