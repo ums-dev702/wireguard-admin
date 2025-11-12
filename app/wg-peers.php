@@ -1582,6 +1582,7 @@ try {
             
             if (response.ok) {
                 const data = await response.json();
+                console.log(`Status for peer ${peerId} (${peerIP}):`, data);
                 
                 if (data.success && data.online) {
                     statusElement.innerHTML = '<i class="fas fa-circle text-green-400 mr-1"></i>Online';
