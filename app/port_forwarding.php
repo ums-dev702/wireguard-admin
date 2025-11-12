@@ -70,53 +70,65 @@ function ensure_port_forwarding_table() {
 }
 ?>
 
-
-    
-    <div class="container mx-auto px-4 py-6">
-        <div class="bg-white rounded-lg shadow p-6">
-            <h1 class="text-2xl font-bold text-gray-800 mb-6">
+<div class="container mx-auto px-4 py-6">
+    <!-- Page Header -->
+    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
+        <div>
+            <h1 class="text-2xl font-bold text-white mb-2">
                 <i class="fas fa-network-wired mr-2"></i>
                 Port Forwarding Manager
             </h1>
-            
-            <?php if ($selected_peer): ?>
-            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                <div class="flex items-center">
-                    <i class="fas fa-info-circle text-blue-600 mr-3"></i>
-                    <div>
-                        <p class="text-blue-800 font-medium">
-                            Managing port forwarding for: <strong><?= htmlspecialchars($selected_peer['name']) ?></strong>
-                        </p>
-                        <p class="text-blue-600 text-sm">
-                            Peer IP: <span class="font-mono"><?= extract_peer_ip($selected_peer['allowed_ips']) ?></span>
-                        </p>
-                    </div>
-                </div>
+            <p class="text-gray-400 text-sm">
+                Configure and manage port forwarding rules for WireGuard peers
+            </p>
+        </div>
+        <div class="flex space-x-3">
+            <a href="wg-peers.php" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm">
+                <i class="fas fa-arrow-left mr-2"></i>Back to Peers
+            </a>
+        </div>
+    </div>
+
+    <!-- Selected Peer Info -->
+    <?php if ($selected_peer): ?>
+    <div class="glass-card p-4 mb-6 border-l-4 border-blue-500">
+        <div class="flex items-center">
+            <i class="fas fa-info-circle text-blue-400 mr-3"></i>
+            <div>
+                <p class="text-blue-400 font-medium">
+                    Managing port forwarding for: <strong><?= htmlspecialchars($selected_peer['name']) ?></strong>
+                </p>
+                <p class="text-gray-400 text-sm">
+                    Peer IP: <span class="font-mono text-blue-300"><?= extract_peer_ip($selected_peer['allowed_ips']) ?></span>
+                </p>
             </div>
-            <?php endif; ?>
+        </div>
+    </div>
+    <?php endif; ?>
+
+    <!-- Main Card -->
+    <div class="glass-card p-6 mb-6">
+        <form method="POST" class="space-y-6">
+            <input type="hidden" name="action" value="generate_rules">
             
             <!-- Peer Selection -->
-            <div class="mb-6">
-                <form method="POST" class="space-y-4">
-                    <input type="hidden" name="action" value="generate_rules">
-                    
-                    <div>
-                        <label for="peer_id" class="block text-sm font-medium text-gray-700 mb-2">
-                            Select Peer for Port Forwarding
-                        </label>
-                        <select name="peer_id" id="peer_id" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
-                            <option value="">Choose a peer...</option>
-                            <?php foreach ($peers as $p): ?>
-                                <option value="<?= $p['id'] ?>" <?= (isset($selected_peer_id) && $selected_peer_id == $p['id']) || (isset($peer_id) && $peer_id == $p['id']) ? 'selected' : '' ?>>
-                                    <?= htmlspecialchars($p['name']) ?> (<?= extract_peer_ip($p['allowed_ips']) ?>)
-                                </option>
-                            <?php endforeach; ?>
-                        </select>
-                    </div>
-                    
-                    <!-- Port Forwarding Rules -->
-                    <div id="rules-container">
-                        <h3 class="text-lg font-medium text-gray-700 mb-4">Port Forwarding Rules</h3>
+            <div>
+                <label for="peer_id" class="block text-sm font-medium text-gray-300 mb-2">
+                    Select Peer for Port Forwarding
+                </label>
+                <select name="peer_id" id="peer_id" class="block w-full bg-gray-700 border-gray-600 text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
+                    <option value="">Choose a peer...</option>
+                    <?php foreach ($peers as $p): ?>
+                        <option value="<?= $p['id'] ?>" <?= (isset($selected_peer_id) && $selected_peer_id == $p['id']) || (isset($peer_id) && $peer_id == $p['id']) ? 'selected' : '' ?>>
+                            <?= htmlspecialchars($p['name']) ?> (<?= extract_peer_ip($p['allowed_ips']) ?>)
+                        </option>
+                    <?php endforeach; ?>
+                </select>
+            </div>
+            
+            <!-- Port Forwarding Rules -->
+            <div id="rules-container">
+                <h3 class="text-lg font-medium text-white mb-4">Port Forwarding Rules</h3>
                         <div class="space-y-3" id="rules-list">
                             <!-- Default rules -->
                             <?php
@@ -130,49 +142,49 @@ function ensure_port_forwarding_table() {
                             
                             foreach ($default_rules as $index => $rule):
                             ?>
-                            <div class="rule-row flex items-center space-x-3 p-3 border rounded-lg bg-gray-50">
+                            <div class="rule-row flex items-center space-x-3 p-3 border border-gray-600 rounded-lg bg-gray-700/50">
                                 <div class="flex-1">
                                     <input type="text" name="rules[<?= $index ?>][name]" placeholder="Service Name" 
-                                           value="<?= $rule['name'] ?>" class="block w-full text-sm border-gray-300 rounded">
+                                           value="<?= $rule['name'] ?>" class="block w-full text-sm bg-gray-800 border-gray-600 text-white rounded">
                                 </div>
                                 <div class="w-24">
                                     <input type="number" name="rules[<?= $index ?>][external_port]" placeholder="Ext Port" 
-                                           value="<?= $rule['external_port'] ?>" class="block w-full text-sm border-gray-300 rounded">
+                                           value="<?= $rule['external_port'] ?>" class="block w-full text-sm bg-gray-800 border-gray-600 text-white rounded">
                                 </div>
                                 <div class="w-24">
                                     <input type="number" name="rules[<?= $index ?>][internal_port]" placeholder="Int Port" 
-                                           value="<?= $rule['internal_port'] ?>" class="block w-full text-sm border-gray-300 rounded">
+                                           value="<?= $rule['internal_port'] ?>" class="block w-full text-sm bg-gray-800 border-gray-600 text-white rounded">
                                 </div>
                                 <div class="w-20">
-                                    <select name="rules[<?= $index ?>][protocol]" class="block w-full text-sm border-gray-300 rounded">
+                                    <select name="rules[<?= $index ?>][protocol]" class="block w-full text-sm bg-gray-800 border-gray-600 text-white rounded">
                                         <option value="tcp" <?= $rule['protocol'] === 'tcp' ? 'selected' : '' ?>>TCP</option>
                                         <option value="udp" <?= $rule['protocol'] === 'udp' ? 'selected' : '' ?>>UDP</option>
                                     </select>
                                 </div>
                                 <div class="flex-1">
                                     <input type="text" name="rules[<?= $index ?>][description]" placeholder="Description" 
-                                           value="<?= $rule['description'] ?>" class="block w-full text-sm border-gray-300 rounded">
+                                           value="<?= $rule['description'] ?>" class="block w-full text-sm bg-gray-800 border-gray-600 text-white rounded">
                                 </div>
-                                <button type="button" onclick="removeRule(this)" class="text-red-500 hover:text-red-700">
+                                <button type="button" onclick="removeRule(this)" class="text-red-400 hover:text-red-300">
                                     <i class="fas fa-trash"></i>
                                 </button>
                             </div>
                             <?php endforeach; ?>
                         </div>
                         
-                        <button type="button" onclick="addRule()" class="mt-3 text-blue-600 hover:text-blue-800">
+                        <button type="button" onclick="addRule()" class="mt-3 text-blue-400 hover:text-blue-300">
                             <i class="fas fa-plus mr-1"></i> Add Rule
                         </button>
                     </div>
                     
                     <div class="flex space-x-3">
-                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700">
+                        <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
                             <i class="fas fa-cogs mr-2"></i>Generate iptables Rules
                         </button>
-                        <button type="button" onclick="applyPortForwardingRules()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700">
+                        <button type="button" onclick="applyPortForwardingRules()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
                             <i class="fas fa-play mr-2"></i>Apply Rules to Server
                         </button>
-                        <button type="button" onclick="generateScript()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                        <button type="button" onclick="generateScript()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition-colors">
                             <i class="fas fa-download mr-2"></i>Download Script
                         </button>
                     </div>
@@ -182,35 +194,35 @@ function ensure_port_forwarding_table() {
             <!-- Active Port Forwarding Rules -->
             <?php if ($selected_peer_id): ?>
                 <?php if (!empty($existing_rules)): ?>
-                <div class="mt-6">
-                    <h3 class="text-lg font-medium text-gray-700 mb-4">
+                <div class="glass-card p-6 mt-6">
+                    <h3 class="text-lg font-medium text-white mb-4">
                         <i class="fas fa-list-check mr-2"></i>Active Port Forwarding Rules
                     </h3>
                     <div class="overflow-x-auto">
-                        <table class="w-full border border-gray-300">
-                            <thead class="bg-gray-100">
+                        <table class="w-full border border-gray-600">
+                            <thead class="bg-gray-800">
                                 <tr>
-                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Service</th>
-                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">External Port</th>
-                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Internal Port</th>
-                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Protocol</th>
-                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Description</th>
-                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Created</th>
-                                    <th class="px-4 py-2 text-center text-sm font-medium text-gray-700">Actions</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">Service</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">External Port</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">Internal Port</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">Protocol</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">Description</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">Created</th>
+                                    <th class="px-4 py-2 text-center text-sm font-medium text-gray-300">Actions</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody class="divide-y divide-gray-600">
                                 <?php foreach ($existing_rules as $rule): ?>
-                                <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                    <td class="px-4 py-3 text-sm font-medium text-gray-800"><?= htmlspecialchars($rule['service_name']) ?></td>
-                                    <td class="px-4 py-3 text-sm text-gray-700"><?= $rule['external_port'] ?></td>
-                                    <td class="px-4 py-3 text-sm text-gray-700"><?= $rule['internal_port'] ?></td>
-                                    <td class="px-4 py-3 text-sm text-gray-700 uppercase"><?= htmlspecialchars($rule['protocol']) ?></td>
-                                    <td class="px-4 py-3 text-sm text-gray-600"><?= htmlspecialchars($rule['description'] ?? '') ?></td>
-                                    <td class="px-4 py-3 text-sm text-gray-600"><?= date('M j, Y', strtotime($rule['created_at'])) ?></td>
+                                <tr class="hover:bg-gray-700/50">
+                                    <td class="px-4 py-3 text-sm font-medium text-white"><?= htmlspecialchars($rule['service_name']) ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-300"><?= $rule['external_port'] ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-300"><?= $rule['internal_port'] ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-300 uppercase"><?= htmlspecialchars($rule['protocol']) ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-400"><?= htmlspecialchars($rule['description'] ?? '') ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-400"><?= date('M j, Y', strtotime($rule['created_at'])) ?></td>
                                     <td class="px-4 py-3 text-center">
                                         <button onclick="removePortForwardRule(<?= $rule['id'] ?>, '<?= htmlspecialchars($rule['service_name'], ENT_QUOTES) ?>')" 
-                                                class="text-red-600 hover:text-red-800">
+                                                class="text-red-400 hover:text-red-300">
                                             <i class="fas fa-trash"></i> Remove
                                         </button>
                                     </td>
@@ -221,11 +233,11 @@ function ensure_port_forwarding_table() {
                     </div>
                 </div>
                 <?php else: ?>
-                <div class="mt-6">
-                    <div class="bg-gray-50 border border-gray-300 rounded-lg p-6 text-center">
-                        <i class="fas fa-network-wired text-gray-400 text-4xl mb-3"></i>
-                        <h3 class="text-lg font-medium text-gray-700 mb-2">No Port Forwarding Rules Yet</h3>
-                        <p class="text-gray-600 mb-4">
+                <div class="glass-card p-6 mt-6">
+                    <div class="text-center py-8">
+                        <i class="fas fa-network-wired text-gray-500 text-4xl mb-3"></i>
+                        <h3 class="text-lg font-medium text-white mb-2">No Port Forwarding Rules Yet</h3>
+                        <p class="text-gray-400 mb-4">
                             This peer doesn't have any port forwarding rules configured yet.
                         </p>
                         <p class="text-sm text-gray-500">
@@ -238,9 +250,9 @@ function ensure_port_forwarding_table() {
             
             <!-- Generated Rules Output -->
             <?php if (isset($peer_ip) && isset($rules)): ?>
-            <div class="mt-6">
-                <h3 class="text-lg font-medium text-gray-700 mb-4">Generated iptables Rules</h3>
-                <div class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto">
+            <div class="glass-card p-6 mt-6">
+                <h3 class="text-lg font-medium text-white mb-4">Generated iptables Rules</h3>
+                <div class="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm overflow-x-auto border border-gray-700">
                     <div class="mb-4">
                         <div class="text-yellow-400"># Port Forwarding Rules for <?= htmlspecialchars($peer_name) ?> (<?= $peer_ip ?>)</div>
                         <div class="text-yellow-400"># Generated on <?= date('Y-m-d H:i:s') ?></div>
@@ -281,10 +293,10 @@ function ensure_port_forwarding_table() {
                 </div>
                 
                 <div class="mt-4 flex space-x-3">
-                    <button onclick="copyRules()" class="bg-gray-600 text-white px-4 py-2 rounded hover:bg-gray-700">
+                    <button onclick="copyRules()" class="bg-gray-700 text-white px-4 py-2 rounded hover:bg-gray-600 transition-colors">
                         <i class="fas fa-copy mr-2"></i>Copy Rules
                     </button>
-                    <button onclick="downloadRules()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700">
+                    <button onclick="downloadRules()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition-colors">
                         <i class="fas fa-download mr-2"></i>Download as Script
                     </button>
                 </div>
@@ -299,30 +311,30 @@ function ensure_port_forwarding_table() {
         function addRule() {
             const container = document.getElementById('rules-list');
             const ruleHtml = `
-                <div class="rule-row flex items-center space-x-3 p-3 border rounded-lg bg-gray-50">
+                <div class="rule-row flex items-center space-x-3 p-3 border border-gray-600 rounded-lg bg-gray-700/50">
                     <div class="flex-1">
                         <input type="text" name="rules[${ruleCount}][name]" placeholder="Service Name" 
-                               class="block w-full text-sm border-gray-300 rounded">
+                               class="block w-full text-sm bg-gray-800 border-gray-600 text-white rounded">
                     </div>
                     <div class="w-24">
                         <input type="number" name="rules[${ruleCount}][external_port]" placeholder="Ext Port" 
-                               class="block w-full text-sm border-gray-300 rounded">
+                               class="block w-full text-sm bg-gray-800 border-gray-600 text-white rounded">
                     </div>
                     <div class="w-24">
                         <input type="number" name="rules[${ruleCount}][internal_port]" placeholder="Int Port" 
-                               class="block w-full text-sm border-gray-300 rounded">
+                               class="block w-full text-sm bg-gray-800 border-gray-600 text-white rounded">
                     </div>
                     <div class="w-20">
-                        <select name="rules[${ruleCount}][protocol]" class="block w-full text-sm border-gray-300 rounded">
+                        <select name="rules[${ruleCount}][protocol]" class="block w-full text-sm bg-gray-800 border-gray-600 text-white rounded">
                             <option value="tcp">TCP</option>
                             <option value="udp">UDP</option>
                         </select>
                     </div>
                     <div class="flex-1">
                         <input type="text" name="rules[${ruleCount}][description]" placeholder="Description" 
-                               class="block w-full text-sm border-gray-300 rounded">
+                               class="block w-full text-sm bg-gray-800 border-gray-600 text-white rounded">
                     </div>
-                    <button type="button" onclick="removeRule(this)" class="text-red-500 hover:text-red-700">
+                    <button type="button" onclick="removeRule(this)" class="text-red-400 hover:text-red-300">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
