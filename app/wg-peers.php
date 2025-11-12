@@ -616,7 +616,7 @@ try {
                                             <?= $peer_ip === 'N/A' ? 'disabled' : '' ?>>
                                             <i class="fas fa-plus mr-1"></i>Forward
                                         </button>
-                                        <a href="port_forwarding.php?peer_id=<?= $peer['id'] ?>"
+                                        <a href="manage_port_forwarding?peer_id=<?= $peer['id'] ?>"
                                             class="px-3 py-1 bg-orange-600 hover:bg-orange-700 text-white rounded text-xs transition-colors"
                                             title="Manage Port Forwarding">
                                             <i class="fas fa-network-wired mr-1"></i>Manage

@@ -32,6 +32,7 @@ $routes = [
     '/get_next_ip'    => 'get_next_ip.php',
     '/generate_mikrotik_script' => 'backend/generate_mikrotik_script.php',
     '/port_forwarding' => 'backend/port_forwarding_backend.php',
+    '/manage_port_forwarding' => 'port_forwarding.php',
 ];
 
 // Get request path (without query string)
