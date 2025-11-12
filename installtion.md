@@ -236,6 +236,18 @@ www-data ALL=(ALL) NOPASSWD: /usr/sbin/iptables, /usr/sbin/iptables-save, /usr/s
 
 ```
 
+check if iptables is in /usr/sbin/iptables
+```bash
+which iptables
+```
+
+check all the port fowardin in iptables
+```bash
+sudo iptables -S
+```
+
+
+
 #### Test Sudo Access
 ```bash
 # Test as www-data user

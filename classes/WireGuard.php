@@ -566,25 +566,25 @@ class WireGuard
                 $internal_port = $rule['internal_port'];
 
                 // Remove PREROUTING DNAT rule
-                $cmd1 = "sudo iptables -t nat -D PREROUTING -p {$protocol} --dport {$external_port} -j DNAT --to-destination {$peer_ip}:{$internal_port} 2>&1";
+                $cmd1 = "sudo /usr/sbin/iptables -t nat -D PREROUTING -p {$protocol} --dport {$external_port} -j DNAT --to-destination {$peer_ip}:{$internal_port} 2>&1";
                 shell_exec($cmd1);
 
                 // Remove POSTROUTING MASQUERADE rule
-                $cmd2 = "sudo iptables -t nat -D POSTROUTING -p {$protocol} -d {$peer_ip} --dport {$internal_port} -j MASQUERADE 2>&1";
+                $cmd2 = "sudo /usr/sbin/iptables -t nat -D POSTROUTING -p {$protocol} -d {$peer_ip} --dport {$internal_port} -j MASQUERADE 2>&1";
                 shell_exec($cmd2);
 
                 // Remove FORWARD rules
-                $cmd3 = "sudo iptables -D FORWARD -p {$protocol} -d {$peer_ip} --dport {$internal_port} -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT 2>&1";
+                $cmd3 = "sudo /usr/sbin/iptables -D FORWARD -p {$protocol} -d {$peer_ip} --dport {$internal_port} -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT 2>&1";
                 shell_exec($cmd3);
 
-                $cmd4 = "sudo iptables -D FORWARD -p {$protocol} -s {$peer_ip} --sport {$internal_port} -m state --state ESTABLISHED,RELATED -j ACCEPT 2>&1";
+                $cmd4 = "sudo /usr/sbin/iptables -D FORWARD -p {$protocol} -s {$peer_ip} --sport {$internal_port} -m state --state ESTABLISHED,RELATED -j ACCEPT 2>&1";
                 shell_exec($cmd4);
 
                 error_log("Removed port forwarding rule for peer {$peerId}: {$external_port} -> {$peer_ip}:{$internal_port}");
             }
 
-            // Save iptables rules
-            shell_exec("sudo netfilter-persistent save 2>&1");
+            // Save iptables rules using iptables-save and tee
+            shell_exec("sudo /usr/sbin/iptables-save | sudo /bin/tee /etc/iptables/rules.v4 > /dev/null 2>&1");
 
             // Delete rules from database completely
             $sql = "DELETE FROM port_forwarding_rules WHERE peer_id = ?";

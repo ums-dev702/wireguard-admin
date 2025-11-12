@@ -78,17 +78,17 @@ try {
                 throw new Exception('Invalid peer IP address');
             }
             
-            // Execute iptables commands
+            // Execute iptables commands with full paths
             $commands = [
-                "sudo iptables -t nat -A PREROUTING -p {$protocol} --dport {$external_port} -j DNAT --to-destination {$peer_ip}:{$internal_port}",
-                "sudo iptables -t nat -A POSTROUTING -p {$protocol} -d {$peer_ip} --dport {$internal_port} -j MASQUERADE",
-                "sudo iptables -A FORWARD -p {$protocol} -d {$peer_ip} --dport {$internal_port} -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT",
-                "sudo iptables -A FORWARD -p {$protocol} -s {$peer_ip} --sport {$internal_port} -m state --state ESTABLISHED,RELATED -j ACCEPT"
+                "sudo /usr/sbin/iptables -t nat -A PREROUTING -p {$protocol} --dport {$external_port} -j DNAT --to-destination {$peer_ip}:{$internal_port}",
+                "sudo /usr/sbin/iptables -t nat -A POSTROUTING -p {$protocol} -d {$peer_ip} --dport {$internal_port} -j MASQUERADE",
+                "sudo /usr/sbin/iptables -A FORWARD -p {$protocol} -d {$peer_ip} --dport {$internal_port} -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT",
+                "sudo /usr/sbin/iptables -A FORWARD -p {$protocol} -s {$peer_ip} --sport {$internal_port} -m state --state ESTABLISHED,RELATED -j ACCEPT"
             ];
             
             $results = [];
             foreach ($commands as $cmd) {
-                $output = shell_exec("sudo /usr/sbin/$cmd 2>&1");
+                $output = shell_exec("$cmd 2>&1");
                 $results[] = [
                     'command' => $cmd,
                     'output' => $output
@@ -96,11 +96,11 @@ try {
             }
             
             // Add UFW rule
-            $ufw_cmd = "sudo ufw allow {$external_port}/{$protocol}";
+            $ufw_cmd = "sudo /usr/sbin/ufw allow {$external_port}/{$protocol}";
             shell_exec($ufw_cmd);
             
-            // Make rules persistent
-            shell_exec('sudo netfilter-persistent save 2>&1');
+            // Make rules persistent using iptables-save and tee
+            shell_exec('sudo /usr/sbin/iptables-save | sudo /bin/tee /etc/iptables/rules.v4 > /dev/null 2>&1');
             
             // Save to database
             $stmt = $db->prepare('
@@ -163,20 +163,20 @@ try {
             $external_port = $rule['external_port'];
             $internal_port = $rule['internal_port'];
             
-            // Remove iptables rules
+            // Remove iptables rules with full paths
             $commands = [
-                "sudo iptables -t nat -D PREROUTING -p {$protocol} --dport {$external_port} -j DNAT --to-destination {$peer_ip}:{$internal_port}",
-                "sudo iptables -t nat -D POSTROUTING -p {$protocol} -d {$peer_ip} --dport {$internal_port} -j MASQUERADE",
-                "sudo iptables -D FORWARD -p {$protocol} -d {$peer_ip} --dport {$internal_port} -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT",
-                "sudo iptables -D FORWARD -p {$protocol} -s {$peer_ip} --sport {$internal_port} -m state --state ESTABLISHED,RELATED -j ACCEPT"
+                "sudo /usr/sbin/iptables -t nat -D PREROUTING -p {$protocol} --dport {$external_port} -j DNAT --to-destination {$peer_ip}:{$internal_port}",
+                "sudo /usr/sbin/iptables -t nat -D POSTROUTING -p {$protocol} -d {$peer_ip} --dport {$internal_port} -j MASQUERADE",
+                "sudo /usr/sbin/iptables -D FORWARD -p {$protocol} -d {$peer_ip} --dport {$internal_port} -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT",
+                "sudo /usr/sbin/iptables -D FORWARD -p {$protocol} -s {$peer_ip} --sport {$internal_port} -m state --state ESTABLISHED,RELATED -j ACCEPT"
             ];
             
             foreach ($commands as $cmd) {
                 shell_exec($cmd . ' 2>&1');
             }
             
-            // Make rules persistent
-            shell_exec('sudo netfilter-persistent save 2>&1');
+            // Make rules persistent using iptables-save and tee
+            shell_exec('sudo /usr/sbin/iptables-save | sudo /bin/tee /etc/iptables/rules.v4 > /dev/null 2>&1');
             
             // Delete from database
             $stmt = $db->prepare('DELETE FROM port_forwarding_rules WHERE id = ?');
