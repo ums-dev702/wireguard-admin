@@ -554,6 +554,34 @@ function ensure_port_forwarding_table()
         }, 3000);
     }
 
+    // Copy to clipboard function
+    function copyToClipboard(text) {
+        navigator.clipboard.writeText(text).then(() => {
+            // Show temporary success message
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            toast.textContent = '✅ Copied to clipboard!';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        }).catch(() => {
+            // Fallback for older browsers
+            const textArea = document.createElement('textarea');
+            textArea.value = text;
+            textArea.style.position = 'fixed';
+            textArea.style.left = '-999999px';
+            document.body.appendChild(textArea);
+            textArea.select();
+            document.execCommand('copy');
+            document.body.removeChild(textArea);
+            
+            const toast = document.createElement('div');
+            toast.className = 'fixed top-4 right-4 bg-green-600 text-white px-4 py-2 rounded-lg shadow-lg z-50';
+            toast.textContent = '✅ Copied to clipboard!';
+            document.body.appendChild(toast);
+            setTimeout(() => toast.remove(), 2000);
+        });
+    }
+
     // Load existing rules on peer selection
     document.getElementById('peer_id').addEventListener('change', function() {
         const peerId = this.value;
