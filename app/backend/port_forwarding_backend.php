@@ -88,7 +88,7 @@ try {
             
             $results = [];
             foreach ($commands as $cmd) {
-                $output = shell_exec($cmd . ' 2>&1');
+                $output = shell_exec("sudo /usr/sbin/$cmd 2>&1");
                 $results[] = [
                     'command' => $cmd,
                     'output' => $output
