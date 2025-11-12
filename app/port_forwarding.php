@@ -34,11 +34,20 @@ $stmt = $db->prepare('SELECT id, name, allowed_ips, status FROM wg_peers WHERE s
 $stmt->execute();
 $peers = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-// Get existing port forwarding rules
+// Get existing port forwarding rules and pre-select peer if passed via URL
 $existing_rules = [];
-if (isset($_GET['peer_id'])) {
+$selected_peer_id = $_GET['peer_id'] ?? null;
+$selected_peer = null;
+
+if ($selected_peer_id) {
+    // Get the selected peer information
+    $stmt = $db->prepare('SELECT * FROM wg_peers WHERE id = ?');
+    $stmt->execute([$selected_peer_id]);
+    $selected_peer = $stmt->fetch(PDO::FETCH_ASSOC);
+    
+    // Get existing rules for this peer
     $stmt = $db->prepare('SELECT * FROM port_forwarding_rules WHERE peer_id = ? AND status = "active" ORDER BY created_at DESC');
-    $stmt->execute([$_GET['peer_id']]);
+    $stmt->execute([$selected_peer_id]);
     $existing_rules = $stmt->fetchAll(PDO::FETCH_ASSOC);
 }
 
@@ -87,6 +96,22 @@ function ensure_port_forwarding_table() {
                 Port Forwarding Manager
             </h1>
             
+            <?php if ($selected_peer): ?>
+            <div class="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                <div class="flex items-center">
+                    <i class="fas fa-info-circle text-blue-600 mr-3"></i>
+                    <div>
+                        <p class="text-blue-800 font-medium">
+                            Managing port forwarding for: <strong><?= htmlspecialchars($selected_peer['name']) ?></strong>
+                        </p>
+                        <p class="text-blue-600 text-sm">
+                            Peer IP: <span class="font-mono"><?= extract_peer_ip($selected_peer['allowed_ips']) ?></span>
+                        </p>
+                    </div>
+                </div>
+            </div>
+            <?php endif; ?>
+            
             <!-- Peer Selection -->
             <div class="mb-6">
                 <form method="POST" class="space-y-4">
@@ -99,7 +124,7 @@ function ensure_port_forwarding_table() {
                         <select name="peer_id" id="peer_id" class="block w-full border-gray-300 rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
                             <option value="">Choose a peer...</option>
                             <?php foreach ($peers as $p): ?>
-                                <option value="<?= $p['id'] ?>" <?= isset($peer_id) && $peer_id == $p['id'] ? 'selected' : '' ?>>
+                                <option value="<?= $p['id'] ?>" <?= (isset($selected_peer_id) && $selected_peer_id == $p['id']) || (isset($peer_id) && $peer_id == $p['id']) ? 'selected' : '' ?>>
                                     <?= htmlspecialchars($p['name']) ?> (<?= extract_peer_ip($p['allowed_ips']) ?>)
                                 </option>
                             <?php endforeach; ?>
@@ -172,45 +197,60 @@ function ensure_port_forwarding_table() {
             </div>
             
             <!-- Active Port Forwarding Rules -->
-            <?php if (!empty($existing_rules)): ?>
-            <div class="mt-6">
-                <h3 class="text-lg font-medium text-gray-700 mb-4">
-                    <i class="fas fa-list-check mr-2"></i>Active Port Forwarding Rules
-                </h3>
-                <div class="overflow-x-auto">
-                    <table class="w-full border border-gray-300">
-                        <thead class="bg-gray-100">
-                            <tr>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Service</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">External Port</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Internal Port</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Protocol</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Description</th>
-                                <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Created</th>
-                                <th class="px-4 py-2 text-center text-sm font-medium text-gray-700">Actions</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                            <?php foreach ($existing_rules as $rule): ?>
-                            <tr class="border-b border-gray-200 hover:bg-gray-50">
-                                <td class="px-4 py-3 text-sm font-medium text-gray-800"><?= htmlspecialchars($rule['service_name']) ?></td>
-                                <td class="px-4 py-3 text-sm text-gray-700"><?= $rule['external_port'] ?></td>
-                                <td class="px-4 py-3 text-sm text-gray-700"><?= $rule['internal_port'] ?></td>
-                                <td class="px-4 py-3 text-sm text-gray-700 uppercase"><?= htmlspecialchars($rule['protocol']) ?></td>
-                                <td class="px-4 py-3 text-sm text-gray-600"><?= htmlspecialchars($rule['description'] ?? '') ?></td>
-                                <td class="px-4 py-3 text-sm text-gray-600"><?= date('M j, Y', strtotime($rule['created_at'])) ?></td>
-                                <td class="px-4 py-3 text-center">
-                                    <button onclick="removePortForwardRule(<?= $rule['id'] ?>, '<?= htmlspecialchars($rule['service_name'], ENT_QUOTES) ?>')" 
-                                            class="text-red-600 hover:text-red-800">
-                                        <i class="fas fa-trash"></i> Remove
-                                    </button>
-                                </td>
-                            </tr>
-                            <?php endforeach; ?>
-                        </tbody>
-                    </table>
+            <?php if ($selected_peer_id): ?>
+                <?php if (!empty($existing_rules)): ?>
+                <div class="mt-6">
+                    <h3 class="text-lg font-medium text-gray-700 mb-4">
+                        <i class="fas fa-list-check mr-2"></i>Active Port Forwarding Rules
+                    </h3>
+                    <div class="overflow-x-auto">
+                        <table class="w-full border border-gray-300">
+                            <thead class="bg-gray-100">
+                                <tr>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Service</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">External Port</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Internal Port</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Protocol</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Description</th>
+                                    <th class="px-4 py-2 text-left text-sm font-medium text-gray-700">Created</th>
+                                    <th class="px-4 py-2 text-center text-sm font-medium text-gray-700">Actions</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                <?php foreach ($existing_rules as $rule): ?>
+                                <tr class="border-b border-gray-200 hover:bg-gray-50">
+                                    <td class="px-4 py-3 text-sm font-medium text-gray-800"><?= htmlspecialchars($rule['service_name']) ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-700"><?= $rule['external_port'] ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-700"><?= $rule['internal_port'] ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-700 uppercase"><?= htmlspecialchars($rule['protocol']) ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-600"><?= htmlspecialchars($rule['description'] ?? '') ?></td>
+                                    <td class="px-4 py-3 text-sm text-gray-600"><?= date('M j, Y', strtotime($rule['created_at'])) ?></td>
+                                    <td class="px-4 py-3 text-center">
+                                        <button onclick="removePortForwardRule(<?= $rule['id'] ?>, '<?= htmlspecialchars($rule['service_name'], ENT_QUOTES) ?>')" 
+                                                class="text-red-600 hover:text-red-800">
+                                            <i class="fas fa-trash"></i> Remove
+                                        </button>
+                                    </td>
+                                </tr>
+                                <?php endforeach; ?>
+                            </tbody>
+                        </table>
+                    </div>
                 </div>
-            </div>
+                <?php else: ?>
+                <div class="mt-6">
+                    <div class="bg-gray-50 border border-gray-300 rounded-lg p-6 text-center">
+                        <i class="fas fa-network-wired text-gray-400 text-4xl mb-3"></i>
+                        <h3 class="text-lg font-medium text-gray-700 mb-2">No Port Forwarding Rules Yet</h3>
+                        <p class="text-gray-600 mb-4">
+                            This peer doesn't have any port forwarding rules configured yet.
+                        </p>
+                        <p class="text-sm text-gray-500">
+                            Configure port forwarding rules above and click "Apply Rules to Server" to get started.
+                        </p>
+                    </div>
+                </div>
+                <?php endif; ?>
             <?php endif; ?>
             
             <!-- Generated Rules Output -->

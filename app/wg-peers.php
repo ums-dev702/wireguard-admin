@@ -877,7 +877,7 @@ try {
 
             <!-- External Port -->
             <div>
-                <label class="block text-sm font-medium text-gray-300 mb-2">
+                <label class   ="block text-sm font-medium text-gray-300 mb-2">
                     External Port (on VPS)
                     <span class="text-xs text-gray-500">- What port to expose publicly</span>
                 </label>
