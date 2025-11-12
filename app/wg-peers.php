@@ -1572,7 +1572,7 @@ try {
         const statusElement = document.getElementById(`connection-status-${peerId}`);
         if (!statusElement) return;
 
-        const peer_ip_ping_url = window.location.origin + '/check_peer_status.php?peer_ip=' + encodeURIComponent(peerIP);
+        const peer_ip_ping_url = window.location.origin + '/check_peer_status?peer_ip=' + encodeURIComponent(peerIP);
         
         try {
             const response = await fetch(peer_ip_ping_url, {
@@ -1582,7 +1582,6 @@ try {
             
             if (response.ok) {
                 const data = await response.json();
-                console.log(`Status for peer ${peerId} (${peerIP}):`, data);
                 
                 if (data.success && data.online) {
                     statusElement.innerHTML = '<i class="fas fa-circle text-green-400 mr-1"></i>Online';
