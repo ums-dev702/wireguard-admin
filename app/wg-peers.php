@@ -1059,7 +1059,7 @@ try {
     }
 
     function deletePeer(peerId, peerName) {
-        if (confirm(`Are you sure you want to delete peer "${peerName}"?\n\nThis will:\n• Remove the peer from interface <?= htmlspecialchars($current_interface) ?>\n• Revoke access for this peer\n• Cannot be undone`)) {
+        if (confirm(`Are you sure you want to delete peer "${peerName}"?\n\nThis will:\n• Remove the peer from interface <?= htmlspecialchars($current_interface) ?>\n• Remove all port forwarding rules for this peer\n• Revoke access for this peer\n• Cannot be undone`)) {
             document.getElementById('deletePeerId').value = peerId;
             document.getElementById('deletePeerForm').submit();
         }

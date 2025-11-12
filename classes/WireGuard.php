@@ -321,6 +321,9 @@ class WireGuard
                 $this->removePeerFromConfig($peer['public_key']);
             }
 
+            // Remove all port forwarding rules for this peer
+            $this->removePortForwardingRules($peerId);
+
             // Mark as inactive in database
             $this->db->update(
                 'wg_peers',
@@ -524,5 +527,104 @@ class WireGuard
         $pow = min($pow, count($units) - 1);
         $bytes /= pow(1024, $pow);
         return round($bytes, $precision) . ' ' . $units[$pow];
+    }
+
+    /**
+     * Remove all port forwarding rules for a peer
+     * @param int $peerId The peer ID
+     * @return void
+     */
+    private function removePortForwardingRules($peerId)
+    {
+        try {
+            // Check if port_forwarding_rules table exists
+            $tables = $this->db->select("SHOW TABLES LIKE 'port_forwarding_rules'");
+            if (empty($tables)) {
+                return; // Table doesn't exist, nothing to clean up
+            }
+
+            // Get peer info to extract IP
+            $peer = $this->db->selectOne("SELECT * FROM wg_peers WHERE id = ?", [$peerId]);
+            if (!$peer) {
+                return;
+            }
+
+            // Get all port forwarding rules for this peer
+            $rules = $this->db->select("SELECT * FROM port_forwarding_rules WHERE peer_id = ? AND status = 'active'", [$peerId]);
+            
+            if (empty($rules)) {
+                return; // No rules to remove
+            }
+
+            // Extract peer IP
+            $peer_ip = $this->extractPeerIp($peer['allowed_ips']);
+            if (empty($peer_ip)) {
+                error_log("Could not extract peer IP for port forwarding cleanup");
+                return;
+            }
+
+            // Remove iptables rules for each port forwarding rule
+            foreach ($rules as $rule) {
+                $protocol = $rule['protocol'];
+                $external_port = $rule['external_port'];
+                $internal_port = $rule['internal_port'];
+
+                // Remove PREROUTING DNAT rule
+                $cmd1 = "sudo iptables -t nat -D PREROUTING -p {$protocol} --dport {$external_port} -j DNAT --to-destination {$peer_ip}:{$internal_port} 2>&1";
+                shell_exec($cmd1);
+
+                // Remove POSTROUTING MASQUERADE rule
+                $cmd2 = "sudo iptables -t nat -D POSTROUTING -p {$protocol} -d {$peer_ip} --dport {$internal_port} -j MASQUERADE 2>&1";
+                shell_exec($cmd2);
+
+                // Remove FORWARD rules
+                $cmd3 = "sudo iptables -D FORWARD -p {$protocol} -d {$peer_ip} --dport {$internal_port} -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT 2>&1";
+                shell_exec($cmd3);
+
+                $cmd4 = "sudo iptables -D FORWARD -p {$protocol} -s {$peer_ip} --sport {$internal_port} -m state --state ESTABLISHED,RELATED -j ACCEPT 2>&1";
+                shell_exec($cmd4);
+
+                error_log("Removed port forwarding rule for peer {$peerId}: {$external_port} -> {$peer_ip}:{$internal_port}");
+            }
+
+            // Save iptables rules
+            shell_exec("sudo netfilter-persistent save 2>&1");
+
+            // Mark rules as inactive in database
+            $this->db->update(
+                'port_forwarding_rules',
+                ['status' => 'inactive'],
+                'peer_id = ?',
+                [$peerId]
+            );
+
+            error_log("Successfully removed all port forwarding rules for peer {$peerId}");
+        } catch (\Exception $e) {
+            error_log("Error removing port forwarding rules for peer {$peerId}: " . $e->getMessage());
+            // Don't throw exception, just log it - we don't want to stop peer deletion if port forwarding cleanup fails
+        }
+    }
+
+    /**
+     * Extract peer IP from allowed_ips string
+     * @param string $allowed_ips The allowed_ips string (e.g., "10.0.0.2/32")
+     * @return string The extracted IP address
+     */
+    private function extractPeerIp($allowed_ips)
+    {
+        if (empty($allowed_ips)) {
+            return '';
+        }
+
+        // Handle multiple IPs (comma-separated)
+        if (strpos($allowed_ips, ',') !== false) {
+            $ips = explode(',', $allowed_ips);
+            $allowed_ips = trim($ips[0]); // Use first IP
+        }
+
+        // Remove CIDR notation
+        $ip = preg_replace('/\/\d+$/', '', trim($allowed_ips));
+        
+        return $ip;
     }
 }
