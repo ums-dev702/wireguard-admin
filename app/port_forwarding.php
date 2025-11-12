@@ -203,6 +203,7 @@ function ensure_port_forwarding_table()
                                 <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">External Port</th>
                                 <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">Internal Port</th>
                                 <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">Protocol</th>
+                                <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">Remote URL</th>
                                 <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">Description</th>
                                 <th class="px-4 py-2 text-left text-sm font-medium text-gray-300">Created</th>
                                 <th class="px-4 py-2 text-center text-sm font-medium text-gray-300">Actions</th>
@@ -210,11 +211,24 @@ function ensure_port_forwarding_table()
                         </thead>
                         <tbody class="divide-y divide-gray-600">
                             <?php foreach ($existing_rules as $rule): ?>
+                                <?php 
+                                $remote_url = defined('WG_VPN_URL') ? WG_VPN_URL . ':' . $rule['external_port'] : SERVER_IP . ':' . $rule['external_port'];
+                                ?>
                                 <tr class="hover:bg-gray-700/50">
                                     <td class="px-4 py-3 text-sm font-medium text-white"><?= htmlspecialchars($rule['service_name']) ?></td>
                                     <td class="px-4 py-3 text-sm text-gray-300"><?= $rule['external_port'] ?></td>
                                     <td class="px-4 py-3 text-sm text-gray-300"><?= $rule['internal_port'] ?></td>
                                     <td class="px-4 py-3 text-sm text-gray-300 uppercase"><?= htmlspecialchars($rule['protocol']) ?></td>
+                                    <td class="px-4 py-3 text-sm">
+                                        <div class="flex items-center space-x-2">
+                                            <span class="font-mono text-blue-300"><?= htmlspecialchars($remote_url) ?></span>
+                                            <button onclick="copyToClipboard('<?= htmlspecialchars($remote_url) ?>')" 
+                                                    class="text-gray-400 hover:text-white transition-colors"
+                                                    title="Copy URL">
+                                                <i class="fas fa-copy text-xs"></i>
+                                            </button>
+                                        </div>
+                                    </td>
                                     <td class="px-4 py-3 text-sm text-gray-400"><?= htmlspecialchars($rule['description'] ?? '') ?></td>
                                     <td class="px-4 py-3 text-sm text-gray-400"><?= date('M j, Y', strtotime($rule['created_at'])) ?></td>
                                     <td class="px-4 py-3 text-center">
