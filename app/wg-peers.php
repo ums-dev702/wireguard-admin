@@ -1353,8 +1353,10 @@ try {
             formData.append('internal_port', internalPort);
             formData.append('protocol', protocol);
             formData.append('description', description);
+
+             const port_url = window.location.origin + '/port_forwarding';
             
-            const response = await fetch('backend/port_forwarding_backend.php', {
+            const response = await fetch(port_url, {
                 method: 'POST',
                 body: formData
             });
