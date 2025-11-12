@@ -1,12 +1,5 @@
 <?php
-require_once '../includes/auth.php';
-require_once '../includes/functions.php';
-
-// Check authentication
-if (!is_authenticated()) {
-    header('Location: auth/login.php');
-    exit;
-}
+require_once __DIR__ . '/../includes/header.php';
 
 $db = get_db();
 
@@ -77,17 +70,7 @@ function ensure_port_forwarding_table() {
 }
 ?>
 
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Port Forwarding Manager - WireGuard Admin</title>
-    <script src="https://cdn.tailwindcss.com"></script>
-    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
-</head>
-<body class="bg-gray-50 min-h-screen">
-    <?php include '../includes/header.php'; ?>
+
     
     <div class="container mx-auto px-4 py-6">
         <div class="bg-white rounded-lg shadow p-6">
@@ -553,5 +536,4 @@ function ensure_port_forwarding_table() {
             }
         });
     </script>
-</body>
-</html>
+<?php require_once __DIR__ . '/../includes/footer.php'; ?>
