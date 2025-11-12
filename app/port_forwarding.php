@@ -135,10 +135,6 @@ function ensure_port_forwarding_table()
                     <?php
                     $default_rules = [
                         ['name' => 'Winbox Access', 'external_port' => '6843', 'internal_port' => '8291', 'protocol' => 'tcp', 'description' => 'MikroTik Winbox management'],
-                        ['name' => 'Web Config', 'external_port' => '6842', 'internal_port' => '80', 'protocol' => 'tcp', 'description' => 'HTTP web interface'],
-                        ['name' => 'HTTPS Config', 'external_port' => '6844', 'internal_port' => '443', 'protocol' => 'tcp', 'description' => 'HTTPS web interface'],
-                        ['name' => 'SSH Access', 'external_port' => '6845', 'internal_port' => '22', 'protocol' => 'tcp', 'description' => 'SSH remote access'],
-                        ['name' => 'Custom Service', 'external_port' => '6846', 'internal_port' => '8080', 'protocol' => 'tcp', 'description' => 'Custom application']
                     ];
 
                     foreach ($default_rules as $index => $rule):
