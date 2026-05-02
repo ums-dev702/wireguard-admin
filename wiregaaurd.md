@@ -77,7 +77,7 @@ Configure Firewall
 If you are using UFW, allow traffic on port 51820 (or the port you specified in the service file):
 ```bash
 # Allow web interface port
-ufw allow 51820/udp
+ufw allow 62528/udp
 
 sudo ufw reload
 ```
