@@ -25,11 +25,13 @@ class Auth
     {
         try {
             $user = $this->db->selectOne(
-                "SELECT * FROM users WHERE username = ? AND status = 'active'",
+                "SELECT * FROM users WHERE username = ? AND status = 'active' AND is_active = 1 LIMIT 1",
                 [$username]
             );
 
             if ($user && password_verify($password, $user['password'])) {
+                session_regenerate_id(true);
+
                 $_SESSION['user_id'] = $user['id'];
                 $_SESSION['username'] = $user['username'];
                 $_SESSION['role'] = $user['role'];
@@ -136,10 +138,27 @@ class Auth
                 'username' => $username,
                 'password' => $hashedPassword,
                 'email' => $email,
-                'role' => $role
+                'role' => $role,
+                'status' => 'active',
+                'is_active' => 1
             ]);
         } catch (\Exception $e) {
             throw new \Exception("Failed to create user: " . $e->getMessage());
+        }
+    }
+
+    public function verifyPassword($userId, $password)
+    {
+        try {
+            $user = $this->db->selectOne(
+                "SELECT password FROM users WHERE id = ? AND status = 'active' AND is_active = 1 LIMIT 1",
+                [$userId]
+            );
+
+            return $user && password_verify($password, $user['password']);
+        } catch (\Exception $e) {
+            error_log("Password verification error: " . $e->getMessage());
+            return false;
         }
     }
 
@@ -186,7 +205,7 @@ class Auth
         $result = $this->db->selectOne(
             "SELECT u.* FROM users u 
              JOIN remember_tokens rt ON u.id = rt.user_id 
-             WHERE rt.token_hash = ? AND rt.expires_at > NOW() AND u.is_active = 1",
+             WHERE rt.token_hash = ? AND rt.expires_at > NOW() AND u.status = 'active' AND u.is_active = 1",
             [$hashedToken]
         );
 

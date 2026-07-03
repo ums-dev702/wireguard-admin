@@ -465,6 +465,10 @@ try {
                         <p class="text-xs text-gray-400"><?= htmlspecialchars($currentUser['role']) ?></p>
                     </div>
                 </div>
+                <a href="change_password" class="nav-link flex items-center p-2 text-green-400" onclick="closeMenuOnMobile()">
+                    <i class="fas fa-key mr-3"></i>
+                    Change Password
+                </a>
                 <a href="logout" class="nav-link flex items-center p-2 text-red-400" onclick="closeMenuOnMobile()">
                     <i class="fas fa-sign-out-alt mr-3"></i>
                     Logout

@@ -1,5 +1,6 @@
 
 
+
 Alvin kiveu
 
 # WireGuard Admin 2.0 - Professional Installation Guide
@@ -74,8 +75,7 @@ sudo yum install php php-cli php-fpm php-pdo php-sqlite3 php-curl php-json php-m
 --------------------------------
 
 ```bash
-sudo chown -R www-data:www-data /var/www/html/wireguard-admin
-sudo chmod -R 755 /var/www/html/wireguard-admin
+sudo chown -R www-data:www-data /var/www/html/wireguard-admin && sudo chmod -R 755 /var/www/html/wireguard-admin
 ```
 
 #### Apache Configuration
@@ -92,18 +92,18 @@ sudo systemctl restart apache2
 --------------------------
 
 ```bash
-sudo nano /etc/apache2/sites-available/wg.trymysoftware.online.conf
+sudo nano /etc/apache2/sites-available/wg.ispnetwork.xyz.conf
 ```
 
 Paste:
 
 ```bash
 <VirtualHost *:80>
-    ServerName wg.trymysoftware.online
-    ServerAdmin webmaster@wg.trymysoftware.online
-    DocumentRoot /var/www/html/wireguard-admin
+    ServerName wg.ispnetwork.xyz
+    ServerAdmin webmaster@wg.ispnetwork.xyz
+    DocumentRoot /var/www/html/wireguard
 
-    <Directory /var/www/html/wireguard-admin/>
+    <Directory /var/www/html/wireguard/>
         Options Indexes FollowSymLinks
         AllowOverride All
         Require all granted
@@ -121,7 +121,7 @@ Paste:
 5. Enable Site and Modules
 --------------------------
 ```bash
-sudo a2ensite wg.trymysoftware.online.conf
+sudo a2ensite wg.ispnetwork.xyz.conf
 sudo a2enmod rewrite
 sudo systemctl reload apache2
 ```
@@ -135,8 +135,8 @@ sudo systemctl restart apache2
 7. Enable SSL (Let's Encrypt)
 -----------------------------
 ```bash
-sudo certbot --apache -d wg.trymysoftware.online
-sudo certbot --nginx -d wg.trymysoftware.online
+sudo certbot --apache -d wg.ispnetwork.xyz
+sudo certbot --nginx -d wg.ispnetwork.xyz
 ```
 
 
@@ -148,7 +148,7 @@ sudo certbot --nginx -d wg.trymysoftware.online
 ----------------------
 
 ```bash
-sudo nano /etc/nginx/sites-available/wg.trymysoftware.online
+sudo nano /etc/nginx/sites-available/wg.ispnetwork.xyz
 ```
 
 Paste:
@@ -156,7 +156,7 @@ Paste:
 ```bash
 server {
     listen 80;
-    server_name wg.trymysoftware.online;
+    server_name wg.ispnetwork.xyz;
 
     root /var/www/html/wireguard-admin;
     index index.php index.html;
@@ -184,42 +184,18 @@ server {
 5. Enable Site
 --------------
 ```bash
-sudo ln -s /etc/nginx/sites-available/wg.trymysoftware.online /etc/nginx/sites-enabled/
+sudo ln -s /etc/nginx/sites-available/wg.ispnetwork.xyz /etc/nginx/sites-enabled/
 sudo nginx -t
 sudo systemctl reload nginx
 
-sudo rm /etc/nginx/sites-available/wg.trymysoftware.online
-sudo rm /etc/nginx/sites-enabled/wg.trymysoftware.online
+sudo rm /etc/nginx/sites-available/wg.ispnetwork.xyz
+sudo rm /etc/nginx/sites-enabled/wg.ispnetwork.xyz
 ```
 
 6. Enable SSL (Let's Encrypt)
 -----------------------------
 ```bash
-sudo certbot --nginx -d wg.trymysoftware.online
-```
-### Step 3: Application Deployment
-
-#### Download and Extract
-```bash
-# Create directory
-sudo mkdir -p /var/www/html/wireguard-admin
-
-# Set ownership
-sudo chown -R www-data:www-data /var/www/html/wireguard-admin
-
-# Upload/extract your files to this directory
-```
-
-#### Set Permissions
-```bash
-# Set directory permissions
-sudo find /var/www/html/wireguard-admin -type d -exec chmod 755 {} \;
-sudo find /var/www/html/wireguard-admin -type f -exec chmod 644 {} \;
-
-# Make data directory writable
-sudo mkdir -p /var/www/html/wireguard-admin/data
-sudo chmod 775 /var/www/html/wireguard-admin/data
-sudo chown www-data:www-data /var/www/html/wireguard-admin/data
+sudo certbot --nginx -d wg.ispnetwork.xyz
 ```
 
 ### Step 4: Sudo Configuration

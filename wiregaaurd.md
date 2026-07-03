@@ -552,3 +552,12 @@ restart-all-wg.sh
 
 
    //  const url = window.location.origin + '/generate_mikrotik_script?peer_id=${peerId}&interface=<?= //urlencode($current_interface) ?>';
+
+
+root@vmi3116082:~# sudo cat /etc/wireguard/private.key
+GEX4ArDq1YlO9SvkDh8QLRbS2/Tp8ikfLEEaM59XBX0=
+root@vmi3116082:~# sudo cat /etc/wireguard/private.key | wg pubkey | sudo tee /etc/wireguard/public.key
+xyy9neque3QfWW+c9WsuESiHBpUcsppky2GgZZ3XVQU=
+root@vmi3116082:~#
+
+

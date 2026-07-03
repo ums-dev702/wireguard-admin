@@ -102,9 +102,16 @@ function ensure_interfaces_table()
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci";
 
         $db->exec($sql);
+
+        // Check if status column exists, and add it if it doesn't
+        $checkColumn = $db->query("SHOW COLUMNS FROM interfaces WHERE Field = 'status'");
+        if ($checkColumn->rowCount() === 0) {
+            $alterSql = "ALTER TABLE interfaces ADD COLUMN status ENUM('active', 'inactive') DEFAULT 'active' AFTER port";
+            $db->exec($alterSql);
+        }
     } catch (PDOException $e) {
         // Log and rethrow or handle as appropriate
-        error_log('Error creating interfaces table: ' . $e->getMessage());
+        error_log('Error creating/altering interfaces table: ' . $e->getMessage());
         throw $e;
     }
 }

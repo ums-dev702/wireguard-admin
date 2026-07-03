@@ -32,11 +32,11 @@ class Database {
      * @param string $prefix Table prefix for multi-tenant environments
      */
     public function __construct($host = null, $dbname = null, $username = null, $password = null, $port = 3306, $prefix = '') {
-        $this->host = $host ?? defined('DB_HOST') ? DB_HOST : 'localhost';
-        $this->dbname = $dbname ?? defined('DB_NAME') ? DB_NAME : 'wireguard_admin';
-        $this->username = $username ?? defined('DB_USER') ? DB_USER : 'root';
-        $this->password = $password ?? defined('DB_PASS') ? DB_PASS : '';
-        $this->port = $port ?? defined('DB_PORT') ? DB_PORT : 3306;
+        $this->host = $host ?? (defined('DB_HOST') ? DB_HOST : 'localhost');
+        $this->dbname = $dbname ?? (defined('DB_NAME') ? DB_NAME : 'wireguard_admin');
+        $this->username = $username ?? (defined('DB_USER') ? DB_USER : 'root');
+        $this->password = $password ?? (defined('DB_PASS') ? DB_PASS : '');
+        $this->port = $port ?? (defined('DB_PORT') ? DB_PORT : 3306);
         $this->tablePrefix = $prefix;
         
         $this->connect();
@@ -87,7 +87,9 @@ class Database {
                     password VARCHAR(255) NOT NULL,
                     email VARCHAR(100),
                     role VARCHAR(20) DEFAULT 'admin',
+                    status ENUM('active', 'inactive') DEFAULT 'active',
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
                     last_login TIMESTAMP NULL DEFAULT NULL,
                     is_active TINYINT(1) DEFAULT 1,
                     INDEX idx_username (username),
@@ -188,6 +190,36 @@ class Database {
                 throw new \Exception("Failed to create table {$tableName}: " . $e->getMessage());
             }
         }
+
+        $this->ensureUserAuthColumns();
+    }
+
+    /**
+     * Keep older installs compatible with the current database-backed auth flow.
+     */
+    private function ensureUserAuthColumns() {
+        $table = "{$this->tablePrefix}users";
+        $columns = [
+            'email' => "ALTER TABLE {$table} ADD COLUMN email VARCHAR(100) NULL AFTER password",
+            'role' => "ALTER TABLE {$table} ADD COLUMN role VARCHAR(20) DEFAULT 'admin' AFTER email",
+            'status' => "ALTER TABLE {$table} ADD COLUMN status ENUM('active', 'inactive') DEFAULT 'active' AFTER role",
+            'is_active' => "ALTER TABLE {$table} ADD COLUMN is_active TINYINT(1) DEFAULT 1 AFTER status",
+            'last_login' => "ALTER TABLE {$table} ADD COLUMN last_login TIMESTAMP NULL DEFAULT NULL AFTER created_at",
+            'updated_at' => "ALTER TABLE {$table} ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP AFTER created_at"
+        ];
+
+        foreach ($columns as $column => $sql) {
+            if (!$this->columnExists('users', $column)) {
+                $this->db->exec($sql);
+            }
+        }
+    }
+
+    private function columnExists($table, $column) {
+        $stmt = $this->db->prepare("SHOW COLUMNS FROM {$this->tablePrefix}{$table} LIKE ?");
+        $stmt->execute([$column]);
+
+        return (bool) $stmt->fetch(\PDO::FETCH_ASSOC);
     }
 
     /**
@@ -272,9 +304,27 @@ class Database {
      */
     public function update($table, $data, $where, $whereParams = []) {
         $setClause = implode(', ', array_map(fn($key) => "{$key} = :{$key}", array_keys($data)));
-        $sql = "UPDATE {$this->tablePrefix}{$table} SET {$setClause} WHERE {$where}";
+        $params = $data;
+        $whereClause = $where;
+
+        if (!empty($whereParams)) {
+            if (strpos($whereClause, '?') !== false) {
+                foreach (array_values($whereParams) as $index => $value) {
+                    $placeholder = ":where_{$index}";
+                    $whereClause = preg_replace('/\?/', $placeholder, $whereClause, 1);
+                    $params["where_{$index}"] = $value;
+                }
+            } else {
+                foreach ($whereParams as $key => $value) {
+                    $paramKey = is_int($key) ? "where_{$key}" : ltrim((string) $key, ':');
+                    $params[$paramKey] = $value;
+                }
+            }
+        }
+
+        $sql = "UPDATE {$this->tablePrefix}{$table} SET {$setClause} WHERE {$whereClause}";
         
-        $stmt = $this->query($sql, array_merge($data, $whereParams));
+        $stmt = $this->query($sql, $params);
         return $stmt->rowCount();
     }
 

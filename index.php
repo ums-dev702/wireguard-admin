@@ -29,6 +29,7 @@ $routes = [
     '/wg_peers'        => 'wg-peers.php',
     '/wg_status'       => 'wg_status.php',
     '/logs'           => 'logs.php',
+    '/change_password' => 'change_password.php',
     '/get_next_ip'    => 'get_next_ip.php',
     '/generate_mikrotik_script' => 'backend/generate_mikrotik_script.php',
     '/port_forwarding' => 'backend/port_forwarding_backend.php',
