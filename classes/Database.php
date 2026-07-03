@@ -49,14 +49,23 @@ class Database {
      */
     private function connect() {
         try {
+            if (!class_exists('\PDO')) {
+                throw new \Exception('PHP PDO extension is not installed or enabled.');
+            }
+
+            if (!in_array('mysql', \PDO::getAvailableDrivers(), true)) {
+                throw new \Exception('PHP MySQL PDO driver is missing. Install php-mysql, then restart Apache/PHP-FPM.');
+            }
+
             $dsn = "mysql:host={$this->host};port={$this->port};dbname={$this->dbname};charset=utf8mb4";
-            $this->db = new \PDO($dsn, $this->username, $this->password, [
+            $options = [
                 \PDO::ATTR_ERRMODE => \PDO::ERRMODE_EXCEPTION,
                 \PDO::ATTR_DEFAULT_FETCH_MODE => \PDO::FETCH_ASSOC,
                 \PDO::ATTR_EMULATE_PREPARES => false,
-                \PDO::MYSQL_ATTR_INIT_COMMAND => "SET NAMES utf8mb4 COLLATE utf8mb4_unicode_ci",
                 \PDO::ATTR_PERSISTENT => true
-            ]);
+            ];
+
+            $this->db = new \PDO($dsn, $this->username, $this->password, $options);
             
             $this->createTables();
         } catch (\PDOException $e) {
@@ -216,8 +225,15 @@ class Database {
     }
 
     private function columnExists($table, $column) {
-        $stmt = $this->db->prepare("SHOW COLUMNS FROM {$this->tablePrefix}{$table} LIKE ?");
-        $stmt->execute([$column]);
+        $stmt = $this->db->prepare(
+            "SELECT 1
+             FROM information_schema.COLUMNS
+             WHERE TABLE_SCHEMA = DATABASE()
+               AND TABLE_NAME = ?
+               AND COLUMN_NAME = ?
+             LIMIT 1"
+        );
+        $stmt->execute(["{$this->tablePrefix}{$table}", $column]);
 
         return (bool) $stmt->fetch(\PDO::FETCH_ASSOC);
     }

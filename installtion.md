@@ -28,7 +28,7 @@ The installation wizard will guide you through:
 #### System Requirements
 - **OS**: Ubuntu 20.04+, Debian 10+, CentOS 8+
 - **PHP**: 7.4 or higher with extensions:
-  - `pdo_sqlite`
+  - `pdo_mysql`
   - `curl`
   - `json`
   - `mbstring`
@@ -63,10 +63,10 @@ sudo yum install kmod-wireguard wireguard-tools -y
 #### Install PHP and Extensions
 ```bash
 # Ubuntu/Debian
-sudo apt install php php-cli php-fpm php-sqlite3 php-pdo php-curl php-json php-mbstring -y
+sudo apt install php php-cli php-fpm php-mysql php-curl php-json php-mbstring -y
 
 # CentOS/RHEL
-sudo yum install php php-cli php-fpm php-pdo php-sqlite3 php-curl php-json php-mbstring -y
+sudo yum install php php-cli php-fpm php-mysqlnd php-curl php-json php-mbstring -y
 ```
 
 ### Step 2: Web Server Setup
