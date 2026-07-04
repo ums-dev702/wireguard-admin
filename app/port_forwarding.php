@@ -71,24 +71,137 @@ function ensure_port_forwarding_table()
 }
 ?>
 
-<div class="container mx-auto px-4 py-6">
-    <!-- Page Header -->
-    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-white mb-2">
-                <i class="fas fa-network-wired mr-2"></i>
-                Port Forwarding Manager
-            </h1>
-            <p class="text-gray-400 text-sm">
-                Configure and manage port forwarding rules for WireGuard peers
-            </p>
+<style>
+    .portal-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        border: 1px solid rgba(249, 115, 22, 0.2);
+        background:
+            radial-gradient(circle at 14% 20%, rgba(249, 115, 22, 0.2), transparent 32%),
+            radial-gradient(circle at 86% 18%, rgba(16, 185, 129, 0.16), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.76));
+        box-shadow: 0 26px 90px rgba(0, 0, 0, 0.3);
+    }
+
+    .portal-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(rgba(249, 115, 22, 0.045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(249, 115, 22, 0.045) 1px, transparent 1px);
+        background-size: 34px 34px;
+        mask-image: linear-gradient(90deg, black, transparent);
+        pointer-events: none;
+    }
+
+    .portal-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 16px;
+        padding: 0.75rem 1rem;
+        font-weight: 800;
+    }
+
+    .portal-button-primary {
+        color: #fff;
+        background: linear-gradient(135deg, #f97316, #c2410c);
+        box-shadow: 0 14px 36px rgba(249, 115, 22, 0.22);
+    }
+
+    .portal-button-secondary {
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .portal-shell .glass-card {
+        border-radius: 24px;
+    }
+
+    .portal-shell .rule-row,
+    .portal-shell .bg-gray-700\/50 {
+        border-radius: 18px !important;
+        border-color: rgba(148, 163, 184, 0.16) !important;
+        background: rgba(2, 6, 23, 0.46) !important;
+    }
+
+    .portal-shell thead {
+        background: rgba(2, 6, 23, 0.82) !important;
+    }
+
+    .forward-step {
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        border-radius: 24px;
+        background: rgba(2, 6, 23, 0.42);
+    }
+
+    .step-badge {
+        width: 42px;
+        height: 42px;
+        display: grid;
+        place-items: center;
+        border-radius: 16px;
+        color: #fff;
+        background: linear-gradient(135deg, #f97316, #c2410c);
+        box-shadow: 0 12px 28px rgba(249, 115, 22, 0.2);
+    }
+
+    .peer-select {
+        width: 100%;
+        border-radius: 18px;
+        border: 1px solid rgba(148, 163, 184, 0.22);
+        background: rgba(2, 6, 23, 0.68);
+        color: #fff;
+        padding: 1rem;
+    }
+
+    .rule-builder-title {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        gap: 1rem;
+        margin-bottom: 1rem;
+    }
+</style>
+
+<div class="p-4 lg:p-6 portal-shell">
+    <section class="portal-hero p-5 lg:p-7 mb-6">
+        <div class="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+            <div>
+                <span class="inline-flex items-center px-3 py-1 rounded-full border border-orange-400 border-opacity-20 bg-orange-500 bg-opacity-10 text-orange-300 text-sm font-bold mb-4">
+                    <span class="w-2 h-2 rounded-full bg-orange-400 animate-pulse mr-2"></span>
+                    NAT Gateway Tools
+                </span>
+                <h1 class="text-3xl lg:text-5xl font-black text-white leading-tight">Port Forwarding Portal</h1>
+                <p class="text-gray-300 text-base lg:text-lg mt-4 max-w-3xl">
+                    Build, apply, download, and audit forwarding rules for WireGuard peers from one clean workspace.
+                </p>
+                <div class="flex flex-wrap gap-3 mt-6">
+                    <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                        Active peers: <strong class="text-green-300"><?= count($peers) ?></strong>
+                    </span>
+                    <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                        Selected: <strong class="text-orange-300"><?= $selected_peer ? htmlspecialchars($selected_peer['name']) : 'None' ?></strong>
+                    </span>
+                    <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                        Rules: <strong class="text-blue-300"><?= count($existing_rules) ?></strong>
+                    </span>
+                </div>
+            </div>
+            <div class="flex flex-col sm:flex-row xl:flex-col gap-3 xl:min-w-64">
+                <a href="wg_peers" class="portal-button portal-button-secondary">
+                    <i class="fas fa-arrow-left"></i>Back to Peers
+                </a>
+                <button onclick="addRule()" class="portal-button portal-button-primary">
+                    <i class="fas fa-plus"></i>Add Rule
+                </button>
+            </div>
         </div>
-        <div class="flex space-x-3">
-            <a href="wg-peers.php" class="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors text-sm">
-                <i class="fas fa-arrow-left mr-2"></i>Back to Peers
-            </a>
-        </div>
-    </div>
+    </section>
 
     <!-- Selected Peer Info -->
     <?php if ($selected_peer): ?>
@@ -108,28 +221,51 @@ function ensure_port_forwarding_table()
     <?php endif; ?>
 
     <!-- Main Card -->
-    <div class="glass-card p-6 mb-6">
+    <div class="glass-card p-5 lg:p-6 mb-6">
         <form method="POST" class="space-y-6">
             <input type="hidden" name="action" value="generate_rules">
 
             <!-- Peer Selection -->
-            <div>
-                <label for="peer_id" class="block text-sm font-medium text-gray-300 mb-2">
-                    Select Peer for Port Forwarding
-                </label>
-                <select name="peer_id" id="peer_id" class="block w-full bg-gray-700 border-gray-600 text-white rounded-md shadow-sm focus:ring-blue-500 focus:border-blue-500" required>
-                    <option value="">Choose a peer...</option>
-                    <?php foreach ($peers as $p): ?>
-                        <option value="<?= $p['id'] ?>" <?= (isset($selected_peer_id) && $selected_peer_id == $p['id']) || (isset($peer_id) && $peer_id == $p['id']) ? 'selected' : '' ?>>
-                            <?= htmlspecialchars($p['name']) ?> (<?= extract_peer_ip($p['allowed_ips']) ?>)
-                        </option>
-                    <?php endforeach; ?>
-                </select>
+            <div class="forward-step p-5">
+                <div class="flex flex-col lg:flex-row lg:items-center gap-4">
+                    <div class="step-badge flex-shrink-0">
+                        <span class="font-black">1</span>
+                    </div>
+                    <div class="flex-1">
+                        <p class="text-sm uppercase tracking-widest text-orange-300 font-bold">Select Peer for Port Forwarding</p>
+                        <h2 class="text-2xl font-black text-white mt-1">Choose a VPN client</h2>
+                        <p class="text-gray-400 mt-1">Pick the peer that should receive forwarded traffic from the public server.</p>
+                    </div>
+                    <div class="w-full lg:w-96">
+                        <select name="peer_id" id="peer_id" class="peer-select" required>
+                            <option value="">Choose a peer...</option>
+                            <?php foreach ($peers as $p): ?>
+                                <option value="<?= $p['id'] ?>" <?= (isset($selected_peer_id) && $selected_peer_id == $p['id']) || (isset($peer_id) && $peer_id == $p['id']) ? 'selected' : '' ?>>
+                                    <?= htmlspecialchars($p['name']) ?> (<?= extract_peer_ip($p['allowed_ips']) ?>)
+                                </option>
+                            <?php endforeach; ?>
+                        </select>
+                    </div>
+                </div>
             </div>
 
             <!-- Port Forwarding Rules -->
-            <div id="rules-container">
-                <h3 class="text-lg font-medium text-white mb-4">Port Forwarding Rules</h3>
+            <div id="rules-container" class="forward-step p-5">
+                <div class="rule-builder-title">
+                    <div class="flex items-start gap-4">
+                        <div class="step-badge flex-shrink-0">
+                            <span class="font-black">2</span>
+                        </div>
+                        <div>
+                            <p class="text-sm uppercase tracking-widest text-orange-300 font-bold">Port Forwarding Rules</p>
+                            <h3 class="text-2xl font-black text-white mt-1">Build service routes</h3>
+                            <p class="text-gray-400 mt-1">Map an external server port to an internal peer service port.</p>
+                        </div>
+                    </div>
+                    <button type="button" onclick="addRule()" class="portal-button portal-button-secondary whitespace-nowrap">
+                        <i class="fas fa-plus"></i>Add Rule
+                    </button>
+                </div>
                 <div class="space-y-3" id="rules-list">
                     <!-- Default rules -->
                     <?php
@@ -169,19 +305,16 @@ function ensure_port_forwarding_table()
                     <?php endforeach; ?>
                 </div>
 
-                <button type="button" onclick="addRule()" class="mt-3 text-blue-400 hover:text-blue-300">
-                    <i class="fas fa-plus mr-1"></i> Add Rule
-                </button>
             </div>
 
-            <div class="flex space-x-3">
-                <button type="submit" class="bg-blue-600 text-white px-4 py-2 rounded hover:bg-blue-700 transition-colors">
+            <div class="flex flex-col sm:flex-row gap-3">
+                <button type="submit" class="portal-button portal-button-secondary">
                     <i class="fas fa-cogs mr-2"></i>Generate iptables Rules
                 </button>
-                <button type="button" onclick="applyPortForwardingRules()" class="bg-green-600 text-white px-4 py-2 rounded hover:bg-green-700 transition-colors">
+                <button type="button" onclick="applyPortForwardingRules()" class="portal-button portal-button-primary">
                     <i class="fas fa-play mr-2"></i>Apply Rules to Server
                 </button>
-                <button type="button" onclick="generateScript()" class="bg-purple-600 text-white px-4 py-2 rounded hover:bg-purple-700 transition-colors">
+                <button type="button" onclick="generateScript()" class="portal-button portal-button-secondary">
                     <i class="fas fa-download mr-2"></i>Download Script
                 </button>
             </div>

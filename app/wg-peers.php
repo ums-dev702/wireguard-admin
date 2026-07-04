@@ -68,6 +68,87 @@ if (!in_array($current_interface, $available_interfaces)) {
         min-width: 12rem;
     }
 }
+
+.portal-hero {
+    position: relative;
+    overflow: hidden;
+    border-radius: 28px;
+    border: 1px solid rgba(16, 185, 129, 0.18);
+    background:
+        radial-gradient(circle at 14% 20%, rgba(20, 241, 164, 0.24), transparent 32%),
+        radial-gradient(circle at 86% 18%, rgba(59, 130, 246, 0.18), transparent 30%),
+        linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.76));
+    box-shadow: 0 26px 90px rgba(0, 0, 0, 0.3);
+}
+
+.portal-hero::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background:
+        linear-gradient(rgba(16, 185, 129, 0.045) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(16, 185, 129, 0.045) 1px, transparent 1px);
+    background-size: 34px 34px;
+    mask-image: linear-gradient(90deg, black, transparent);
+    pointer-events: none;
+}
+
+.portal-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 16px;
+    padding: 0.75rem 1rem;
+    font-weight: 800;
+}
+
+.portal-button-primary {
+    color: #fff;
+    background: linear-gradient(135deg, #10b981, #047857);
+    box-shadow: 0 14px 36px rgba(16, 185, 129, 0.22);
+}
+
+.portal-button-secondary {
+    color: #e2e8f0;
+    border: 1px solid rgba(148, 163, 184, 0.18);
+    background: rgba(255, 255, 255, 0.06);
+}
+
+.portal-button-secondary:hover,
+.portal-button-primary:hover {
+    transform: translateY(-1px);
+    border-color: rgba(16, 185, 129, 0.3);
+}
+
+.portal-stat {
+    border-radius: 24px;
+    border: 1px solid rgba(148, 163, 184, 0.16);
+    background: rgba(15, 23, 42, 0.72);
+    backdrop-filter: blur(18px);
+}
+
+.portal-shell .glass-card {
+    border-radius: 24px;
+}
+
+.portal-shell thead {
+    background: rgba(2, 6, 23, 0.78) !important;
+}
+
+.portal-shell tbody tr:hover {
+    background: rgba(16, 185, 129, 0.055) !important;
+}
+
+.portal-shell .status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    border-radius: 999px;
+    padding: 0.35rem 0.7rem;
+    font-size: 0.78rem;
+    font-weight: 800;
+}
 </style>
 
 <?php
@@ -258,45 +339,53 @@ try {
 ?>
 
 <!-- WireGuard Peers Management -->
-<div class="p-4 lg:p-6">
-    <!-- Page Header -->
-    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-white mb-2">WireGuard Peers Management</h1>
-            <p class="text-gray-400">Manage VPN peers across multiple interfaces</p>
-            <div class="flex items-center gap-4 mt-2">
-                <div class="text-sm text-gray-400">
-                    Current Interface: <span class="text-white font-medium"><?= htmlspecialchars($current_interface) ?></span>
-                </div>
-                <div class="text-sm text-gray-400">
-                    Available Interfaces: <span class="text-blue-400 font-medium"><?= count($available_interfaces) ?></span>
+<div class="p-4 lg:p-6 portal-shell">
+    <section class="portal-hero p-5 lg:p-7 mb-6">
+        <div class="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+            <div>
+                <span class="inline-flex items-center px-3 py-1 rounded-full border border-green-400 border-opacity-20 bg-green-500 bg-opacity-10 text-green-300 text-sm font-bold mb-4">
+                    <span class="w-2 h-2 rounded-full <?= $interface_running ? 'bg-green-400 animate-pulse' : 'bg-red-400' ?> mr-2"></span>
+                    <?= $interface_running ? 'Peer Network Online' : 'Peer Network Offline' ?>
+                </span>
+                <h1 class="text-3xl lg:text-5xl font-black text-white leading-tight">WireGuard Peer Portal</h1>
+                <p class="text-gray-300 text-base lg:text-lg mt-4 max-w-3xl">
+                    Create, monitor, and provision VPN clients across your WireGuard interfaces.
+                </p>
+                <div class="flex flex-wrap gap-3 mt-6">
+                    <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                        Current: <strong class="text-white"><?= htmlspecialchars($current_interface ?: 'None') ?></strong>
+                    </span>
+                    <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                        Interfaces: <strong class="text-blue-300"><?= count($available_interfaces) ?></strong>
+                    </span>
+                    <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                        Peers: <strong class="text-green-300"><?= count($peers) ?></strong>
+                    </span>
                 </div>
             </div>
-        </div>
 
-        <!-- Interface Selector -->
-        <div class="flex flex-col sm:flex-row gap-3">
-            <div class="flex items-center gap-2">
-                <label class="text-sm font-medium text-gray-300">Interface:</label>
-                <select onchange="changeInterface(this.value)" class="px-3 py-2 bg-gray-700 border border-gray-600 rounded text-white text-sm min-w-24">
+            <div class="flex flex-col sm:flex-row xl:flex-col gap-3 xl:min-w-72">
+                <select onchange="changeInterface(this.value)" class="px-4 py-3 text-white text-sm min-w-48">
                     <?php foreach ($available_interfaces as $iface): ?>
                         <option value="<?= $iface ?>" <?= $iface === $current_interface ? 'selected' : '' ?>>
                             <?= htmlspecialchars($iface) ?>
                         </option>
                     <?php endforeach; ?>
                 </select>
+                <button onclick="showCreatePeerModal()" class="portal-button portal-button-primary">
+                    <i class="fas fa-user-plus"></i>Add Peer
+                </button>
+                <div class="grid grid-cols-2 gap-3">
+                    <a href="create_interface" class="portal-button portal-button-secondary text-sm">
+                        <i class="fas fa-plus"></i>Interface
+                    </a>
+                    <a href="manage_port_forwarding" class="portal-button portal-button-secondary text-sm">
+                        <i class="fas fa-route"></i>Ports
+                    </a>
+                </div>
             </div>
-            <a href="create_interface" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors text-sm">
-                <i class="fas fa-plus mr-2"></i>New Interface
-            </a>
-            <a href="port_forwarding.php" class="px-4 py-2 bg-orange-600 hover:bg-orange-700 text-white rounded-lg transition-colors text-sm">
-                <i class="fas fa-network-wired mr-2"></i>Port Forwarding
-            </a>
-            <button onclick="showCreatePeerModal()" class="px-4 py-2 bg-blue-600 hover:bg-blue-700 text-white rounded-lg transition-colors">
-                <i class="fas fa-user-plus mr-2"></i>Add Peer
-            </button>
         </div>
-    </div>
+    </section>
 
     <!-- Success/Error Messages -->
     <?php if ($success_message): ?>

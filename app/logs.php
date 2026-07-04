@@ -106,25 +106,109 @@ try {
 }
 ?>
 
+<style>
+    .portal-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        border: 1px solid rgba(56, 189, 248, 0.18);
+        background:
+            radial-gradient(circle at 14% 20%, rgba(56, 189, 248, 0.2), transparent 32%),
+            radial-gradient(circle at 86% 18%, rgba(16, 185, 129, 0.16), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.76));
+        box-shadow: 0 26px 90px rgba(0, 0, 0, 0.3);
+    }
+
+    .portal-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(rgba(56, 189, 248, 0.045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(56, 189, 248, 0.045) 1px, transparent 1px);
+        background-size: 34px 34px;
+        mask-image: linear-gradient(90deg, black, transparent);
+        pointer-events: none;
+    }
+
+    .portal-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 16px;
+        padding: 0.75rem 1rem;
+        font-weight: 800;
+    }
+
+    .portal-button-primary {
+        color: #fff;
+        background: linear-gradient(135deg, #38bdf8, #2563eb);
+        box-shadow: 0 14px 36px rgba(56, 189, 248, 0.18);
+    }
+
+    .portal-button-danger {
+        color: #fff;
+        background: linear-gradient(135deg, #ef4444, #b91c1c);
+        box-shadow: 0 14px 36px rgba(239, 68, 68, 0.18);
+    }
+
+    .portal-shell .glass-card {
+        border-radius: 24px;
+    }
+
+    .portal-shell thead {
+        background: rgba(2, 6, 23, 0.82) !important;
+    }
+
+    .portal-shell tbody tr:hover {
+        background: rgba(56, 189, 248, 0.055) !important;
+    }
+
+    .audit-stat {
+        border-radius: 24px;
+        border: 1px solid rgba(148, 163, 184, 0.16);
+        background: rgba(15, 23, 42, 0.72);
+        backdrop-filter: blur(18px);
+    }
+</style>
+
 <!-- Logs Content -->
-<div class="p-4 lg:p-6">
-    <!-- Page Header -->
-    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-white mb-2">Audit Logs</h1>
-            <p class="text-gray-400">Monitor system activities and security events</p>
+<div class="p-4 lg:p-6 portal-shell">
+    <section class="portal-hero p-5 lg:p-7 mb-6">
+        <div class="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+            <div>
+                <span class="inline-flex items-center px-3 py-1 rounded-full border border-blue-400 border-opacity-20 bg-blue-500 bg-opacity-10 text-blue-300 text-sm font-bold mb-4">
+                    <span class="w-2 h-2 rounded-full bg-blue-400 animate-pulse mr-2"></span>
+                    Security Activity
+                </span>
+                <h1 class="text-3xl lg:text-5xl font-black text-white leading-tight">Audit Log Portal</h1>
+                <p class="text-gray-300 text-base lg:text-lg mt-4 max-w-3xl">
+                    Search VPN admin activity, review access events, and monitor system changes.
+                </p>
+                <div class="flex flex-wrap gap-3 mt-6">
+                    <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                        Total logs: <strong class="text-blue-300"><?= number_format($total_logs) ?></strong>
+                    </span>
+                    <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                        Action types: <strong class="text-green-300"><?= count($available_actions) ?></strong>
+                    </span>
+                    <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                        Page: <strong class="text-white"><?= $page ?><?= $total_pages ? ' / ' . $total_pages : '' ?></strong>
+                    </span>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row xl:flex-col gap-3 xl:min-w-56">
+                <button onclick="exportLogs()" class="portal-button portal-button-primary">
+                    <i class="fas fa-download"></i>Export Logs
+                </button>
+                <button onclick="showDeleteAllModal()" class="portal-button portal-button-danger">
+                    <i class="fas fa-trash-alt"></i>Delete All
+                </button>
+            </div>
         </div>
-        
-        <!-- Action Buttons -->
-        <div class="flex gap-3">
-            <button onclick="exportLogs()" class="px-4 py-2 bg-green-600 hover:bg-green-700 text-white rounded-lg transition-colors">
-                <i class="fas fa-download mr-2"></i>Export
-            </button>
-            <button onclick="showDeleteAllModal()" class="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded-lg transition-colors">
-                <i class="fas fa-trash-alt mr-2"></i>Delete All
-            </button>
-        </div>
-    </div>
+    </section>
 
     <?php if (isset($success_message) && $success_message): ?>
     <!-- Success Message -->

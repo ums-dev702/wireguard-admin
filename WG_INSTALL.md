@@ -48,7 +48,7 @@ sudo cat /etc/wireguard/public.key
 #### Configure WireGuard Access
 ```bash
 # Edit sudoers file
-sudo visudo
+sudo visudo -f /etc/sudoers.d/wireguard
 ```
 
 Add the following content:

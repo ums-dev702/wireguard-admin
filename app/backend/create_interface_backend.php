@@ -2,21 +2,71 @@
 include_once __DIR__ . '/../../config.php';
 include_once __DIR__ . '/../../autoloader.php';
 include_once __DIR__ . '/../../includes/functions.php';
-$db = new \WireGuardAdmin\Database();
+
+function redirectToCreateInterface(string $type, string $message): void
+{
+    header('Location: ../../create_interface?' . $type . '=' . urlencode($message));
+    exit;
+}
+
+function exactCommandError(string $label, array $output, int $code): string
+{
+    $message = trim(implode("\n", $output));
+    if ($message === '') {
+        $message = 'No command output returned.';
+    }
+
+    return "{$label} failed with exit code {$code}: {$message}";
+}
+
+function normalizeInterfaceName(string $iface): string
+{
+    $iface = trim($iface);
+    $iface = preg_replace('/^wg_/', '', $iface);
+
+    if (!preg_match('/^[A-Za-z0-9_-]{1,8}$/', $iface)) {
+        return '';
+    }
+
+    return $iface;
+}
+
+function wireGuardDeviceName(string $iface): string
+{
+    return 'wg_' . normalizeInterfaceName($iface);
+}
+
+function interfaceExistsInDatabase(string $iface): bool
+{
+    try {
+        ensure_interfaces_table();
+        $db = get_db();
+        $stmt = $db->prepare('SELECT COUNT(*) FROM interfaces WHERE name = ?');
+        $stmt->execute([$iface]);
+
+        return (int) $stmt->fetchColumn() > 0;
+    } catch (Exception $e) {
+        sendToTelegram("Error checking interface existence: " . $e->getMessage());
+        return false;
+    }
+}
 
 // Function to handle interface creation
 function createWireGuardInterface($iface, $private_key, $address, $listen_port)
 {
     global $error, $success;
 
+    $iface = normalizeInterfaceName((string)$iface);
+    $listen_port = (int)$listen_port;
+
     // Validation
-    if (strlen($iface) > 8) {
-        $error = "Interface name must not exceed 8 characters.";
+    if ($iface === '') {
+        $error = "Interface name must be 1-8 characters and contain only letters, numbers, underscores, or dashes.";
         sendToTelegram("Error: " . $error);
         return false;
     }
 
-    if (!$iface || !$private_key || !$address) {
+    if (!$private_key || !$address) {
         $error = "All required fields must be filled.";
         sendToTelegram("Error: " . $error);
         return false;
@@ -30,7 +80,14 @@ function createWireGuardInterface($iface, $private_key, $address, $listen_port)
         return false;
     }
 
-    $conf_path = "/etc/wireguard/wg_$iface.conf";
+    if (interfaceExistsInDatabase($iface)) {
+        $error = "Interface already exists in the database.";
+        sendToTelegram("Error: " . $error);
+        return false;
+    }
+
+    $wg_iface = wireGuardDeviceName($iface);
+    $conf_path = "/etc/wireguard/{$wg_iface}.conf";
 
     // Check if interface already exists
     if (file_exists($conf_path)) {
@@ -40,18 +97,25 @@ function createWireGuardInterface($iface, $private_key, $address, $listen_port)
     }
 
     // Create configuration
-    $conf = generateInterfaceConfig($private_key, $address, $listen_port);
+    $conf = generateInterfaceConfig($iface, $private_key, $address, $listen_port);
 
     // Write configuration file
     if (file_put_contents($conf_path, $conf) === false) {
-        $error = "Failed to write configuration file.";
+        $lastError = error_get_last();
+        $error = "Failed to write configuration file {$conf_path}: " . ($lastError['message'] ?? 'Unknown file write error.');
         sendToTelegram("Error: " . $error);
+        return false;
+    }
+    if (!chmod($conf_path, 0600)) {
+        $lastError = error_get_last();
+        $error = "Failed to set permissions on {$conf_path}: " . ($lastError['message'] ?? 'Unknown chmod error.');
+        sendToTelegram("Error: " . $error);
+        unlink($conf_path);
         return false;
     }
 
     // Configure firewall
     if (!configureFirewall($listen_port)) {
-        $error = "Failed to configure firewall rules.";
         sendToTelegram("Error: " . $error);
         // Clean up created file
         unlink($conf_path);
@@ -60,7 +124,6 @@ function createWireGuardInterface($iface, $private_key, $address, $listen_port)
 
     // Start interface
     if (!startInterface($iface)) {
-        $error = "Failed to start WireGuard interface.";
         sendToTelegram("Error: " . $error);
         // Clean up created file
         unlink($conf_path);
@@ -88,22 +151,28 @@ function createWireGuardInterface($iface, $private_key, $address, $listen_port)
         sendToTelegram($success_msg);
         return $iface_id;
     } else {
-        $success = "WireGuard interface '$iface' created and started, but failed to save to database.";
-        return true; // Interface created but DB failed
+        stopInterface($iface);
+        unlink($conf_path);
+        configureFirewallRemove($listen_port);
+
+        $error = "Interface was created but could not be saved to the database, so it was rolled back.";
+        sendToTelegram("Error: " . $error);
+        return false;
     }
 }
 
 // Function to generate interface configuration
-function generateInterfaceConfig($private_key, $address, $listen_port)
+function generateInterfaceConfig($iface, $private_key, $address, $listen_port)
 {
+    $wg_iface = wireGuardDeviceName($iface);
     $conf = "[Interface]\n";
     $conf .= "PrivateKey = $private_key\n";
     $conf .= "Address = $address\n";
     $conf .= "ListenPort = $listen_port\n";
     $conf .= "SaveConfig = true\n\n";
-    $conf .= "PostUp = ufw route allow in on wg0 out on eth0\n";
+    $conf .= "PostUp = ufw route allow in on {$wg_iface} out on eth0\n";
     $conf .= "PostUp = iptables -t nat -I POSTROUTING -o eth0 -j MASQUERADE\n";
-    $conf .= "PreDown = ufw route delete allow in on wg0 out on eth0\n";
+    $conf .= "PreDown = ufw route delete allow in on {$wg_iface} out on eth0\n";
     $conf .= "PreDown = iptables -t nat -D POSTROUTING -o eth0 -j MASQUERADE\n";
 
     return $conf;
@@ -113,9 +182,13 @@ function generateInterfaceConfig($private_key, $address, $listen_port)
 // Function to configure firewall
 function configureFirewall($listen_port)
 {
+    global $error;
+
+    $listen_port = (int)$listen_port;
     exec("sudo ufw allow {$listen_port}/udp && sudo ufw reload 2>&1", $ufwOutput, $ufwCode);
     if ($ufwCode !== 0) {
-        sendToTelegram("Error: Failed to configure UFW for port {$listen_port}. Error: " . implode("\n", $ufwOutput));
+        $error = exactCommandError("Configuring UFW for UDP port {$listen_port}", $ufwOutput, $ufwCode);
+        sendToTelegram("Error: " . $error);
         return false;
     }
 
@@ -124,9 +197,13 @@ function configureFirewall($listen_port)
 
 function configureFirewallRemove($listen_port)
 {
+    global $error;
+
+    $listen_port = (int)$listen_port;
     exec("sudo ufw delete allow {$listen_port}/udp && sudo ufw reload 2>&1", $ufwOutput, $ufwCode);
     if ($ufwCode !== 0) {
-        sendToTelegram("Error: Failed to remove UFW rule for port {$listen_port}. Error: " . implode("\n", $ufwOutput));
+        $error = exactCommandError("Removing UFW rule for UDP port {$listen_port}", $ufwOutput, $ufwCode);
+        sendToTelegram("Error: " . $error);
         return false;
     }
 
@@ -137,14 +214,20 @@ function configureFirewallRemove($listen_port)
 // Function to start a WireGuard interface
 function startInterface(string $iface): bool
 {
-    // Sanitize interface name (avoid injection)
-    $iface = escapeshellarg($iface);
+    global $error;
 
-    // No need to prepend {wg_}, just use the given name
-    exec("sudo /usr/bin/wg-quick up wg_$iface 2>&1", $wgOutput, $wgCode);
+    $wg_iface = wireGuardDeviceName($iface);
+    if ($wg_iface === 'wg_') {
+        $error = "Invalid WireGuard interface name.";
+        sendToTelegram("Error: " . $error);
+        return false;
+    }
+
+    exec("sudo /usr/bin/wg-quick up " . escapeshellarg($wg_iface) . " 2>&1", $wgOutput, $wgCode);
 
     if ($wgCode !== 0) {
-        sendToTelegram("Error: Failed to start WireGuard interface wg_$iface. Error: " . implode("\n", $wgOutput));
+        $error = exactCommandError("Starting WireGuard interface {$wg_iface}", $wgOutput, $wgCode);
+        sendToTelegram("Error: " . $error);
         return false;
     }
 
@@ -154,13 +237,20 @@ function startInterface(string $iface): bool
 // Function to stop a WireGuard interface
 function stopInterface(string $iface): bool
 {
-    // Sanitize interface name (avoid injection)
-    $iface = escapeshellarg($iface);
+    global $error;
 
-    exec("sudo /usr/bin/wg-quick down wg_$iface 2>&1", $wgOutput, $wgCode);
+    $wg_iface = wireGuardDeviceName($iface);
+    if ($wg_iface === 'wg_') {
+        $error = "Invalid WireGuard interface name.";
+        sendToTelegram("Error: " . $error);
+        return false;
+    }
+
+    exec("sudo /usr/bin/wg-quick down " . escapeshellarg($wg_iface) . " 2>&1", $wgOutput, $wgCode);
 
     if ($wgCode !== 0) {
-        sendToTelegram("Error: Failed to stop WireGuard interface wg_$iface. Error: " . implode("\n", $wgOutput));
+        $error = exactCommandError("Stopping WireGuard interface {$wg_iface}", $wgOutput, $wgCode);
+        sendToTelegram("Error: " . $error);
         return false;
     }
 
@@ -189,11 +279,13 @@ function saveInterfaceToDatabase($iface, $address, $listen_port)
         if ($result) {
             return $iface_id; // Return the generated interface ID, not the auto-increment ID
         } else {
-            sendToTelegram("Error: Failed to insert interface into database");
+            $error = "Failed to insert interface into database.";
+            sendToTelegram("Error: " . $error);
             return false;
         }
     } catch (Exception $e) {
-        sendToTelegram("Error: Database error: " . $e->getMessage());
+        $error = "Database error while saving interface: " . $e->getMessage();
+        sendToTelegram("Error: " . $error);
         return false;
     }
 }
@@ -208,10 +300,11 @@ function deleteWireGuardInterface($iface_id, $iface_name)
         stopInterface($iface_name);
 
         // Remove configuration file
-        $conf_path = "/etc/wireguard/wg_$iface_name.conf";
+        $conf_path = "/etc/wireguard/" . wireGuardDeviceName($iface_name) . ".conf";
         if (file_exists($conf_path)) {
             if (!unlink($conf_path)) {
-                $error = "Failed to remove configuration file.";
+                $lastError = error_get_last();
+                $error = "Failed to remove configuration file {$conf_path}: " . ($lastError['message'] ?? 'Unknown unlink error.');
                 return false;
             }
         }
@@ -274,7 +367,7 @@ function editWireGuardInterface($iface_id, $iface_name, $new_address, $new_port)
         $stmt->execute([$new_address, $new_port, $iface_id]);
 
         // Update configuration file
-        $conf_path = "/etc/wireguard/wg_$iface_name.conf";
+        $conf_path = "/etc/wireguard/" . wireGuardDeviceName($iface_name) . ".conf";
         if (file_exists($conf_path)) {
             $config = file_get_contents($conf_path);
 
@@ -283,7 +376,8 @@ function editWireGuardInterface($iface_id, $iface_name, $new_address, $new_port)
             $config = preg_replace('/ListenPort = .+/', "ListenPort = $new_port", $config);
 
             if (file_put_contents($conf_path, $config) === false) {
-                $error = "Failed to update configuration file.";
+                $lastError = error_get_last();
+                $error = "Failed to update configuration file {$conf_path}: " . ($lastError['message'] ?? 'Unknown file write error.');
                 return false;
             }
 
@@ -301,8 +395,13 @@ function editWireGuardInterface($iface_id, $iface_name, $new_address, $new_port)
             }
 
             // Restart interface to apply changes
-            stopInterface($iface_name);
-            startInterface($iface_name);
+            if (!stopInterface($iface_name)) {
+                return false;
+            }
+
+            if (!startInterface($iface_name)) {
+                return false;
+            }
         }
 
         $success = "WireGuard interface '$iface_name' updated successfully.";
@@ -321,8 +420,8 @@ function editWireGuardInterface($iface_id, $iface_name, $new_address, $new_port)
         
         sendToTelegram($success_msg);
         return true;
-    } catch (Exception $e) {
-        $error = "Failed to edit interface: " . $e->getMessage();
+    } catch (Throwable $e) {
+        $error = "Failed to edit interface: " . get_class($e) . ': ' . $e->getMessage();
         sendToTelegram($error);
         return false;
     }
@@ -356,84 +455,91 @@ function getAllInterfaces()
     }
 }
 
-// Main create interface handler
-if (isset($_POST['create_interface'])) {
-    $iface = trim((string)($_POST['iface'] ?? ''));
-    $private_key = trim((string)($_POST['private_key'] ?? ''));
-    $listen_port = trim((string)($_POST['listen_port'] ?? ''));
-    $address = trim((string)($_POST['address'] ?? ''));
+try {
+    $action = $_POST['action'] ?? '';
 
-    $createWireGuardInterface = createWireGuardInterface($iface, $private_key, $address, $listen_port);
-    if ($createWireGuardInterface) {
-        header('Location: ../../create_interface?success=WireGuard interface created successfully.');
-    } else {
-        header('Location: ../../create_interface?error=Failed to create WireGuard interface. ' . ($error ?? ''));
+    // Main create interface handler
+    if ($action === 'create_interface' || isset($_POST['create_interface'])) {
+        $iface = trim((string)($_POST['iface'] ?? ''));
+        $private_key = trim((string)($_POST['private_key'] ?? ''));
+        $listen_port = trim((string)($_POST['listen_port'] ?? ''));
+        $address = trim((string)($_POST['address'] ?? ''));
+
+        $createWireGuardInterface = createWireGuardInterface($iface, $private_key, $address, $listen_port);
+        if ($createWireGuardInterface) {
+            redirectToCreateInterface('success', 'WireGuard interface created successfully.');
+        }
+
+        redirectToCreateInterface('error', 'Failed to create WireGuard interface. ' . ($error ?? 'Unknown error.'));
     }
-}
 
-// Delete interface handler
-if (isset($_POST['delete_interface'])) {
-    $iface_id = trim((string)($_POST['iface_id'] ?? ''));
-    $iface_name = trim((string)($_POST['iface_name'] ?? ''));
+    // Delete interface handler
+    if ($action === 'delete_interface' || isset($_POST['delete_interface'])) {
+        $iface_id = trim((string)($_POST['iface_id'] ?? ''));
+        $iface_name = trim((string)($_POST['iface_name'] ?? ''));
 
-    if ($iface_id && $iface_name) {
-        deleteWireGuardInterface($iface_id, $iface_name);
-    } else {
+        if ($iface_id && $iface_name) {
+            if (deleteWireGuardInterface($iface_id, $iface_name)) {
+                redirectToCreateInterface('success', 'Interface deleted successfully.');
+            }
+
+            redirectToCreateInterface('error', 'Failed to delete interface. ' . ($error ?? 'Unknown error.'));
+        }
+
         $error = "Interface ID and name are required for deletion.";
         sendToTelegram("Error: " . $error);
+        redirectToCreateInterface('error', $error);
     }
-}
 
-// Edit interface handler
-if (isset($_POST['edit_interface'])) {
-    $iface_id = trim((string)($_POST['iface_id'] ?? ''));
-    $iface_name = trim((string)($_POST['iface_name'] ?? ''));
-    $address = trim((string)($_POST['address'] ?? ''));
-    $port = trim((string)($_POST['port'] ?? ''));
+    // Edit interface handler
+    if ($action === 'edit_interface' || isset($_POST['edit_interface'])) {
+        $iface_id = trim((string)($_POST['iface_id'] ?? ''));
+        $iface_name = trim((string)($_POST['iface_name'] ?? ''));
+        $address = trim((string)($_POST['address'] ?? ''));
+        $port = trim((string)($_POST['port'] ?? ''));
 
-    if ($iface_id && $iface_name && $address && $port) {
-        $result = editWireGuardInterface($iface_id, $iface_name, $address, $port);
-        if ($result) {
-            header('Location: ../../create_interface?success=Interface updated successfully.');
-        } else {
-            header('Location: ../../create_interface?error=Failed to update interface.');
+        if ($iface_id && $iface_name && $address && $port) {
+            $result = editWireGuardInterface($iface_id, $iface_name, $address, $port);
+            if ($result) {
+                redirectToCreateInterface('success', 'Interface updated successfully.');
+            }
+
+            redirectToCreateInterface('error', 'Failed to update interface. ' . ($error ?? 'Unknown error.'));
         }
-    } else {
+
         $error = "All fields are required for editing.";
         sendToTelegram("Error: " . $error);
-        header('Location: ../../create_interface?error=' . urlencode($error));
+        redirectToCreateInterface('error', $error);
     }
-    exit;
-}
 
-// Handle delete by ID (from interface table)
-if (isset($_POST['delete_id'])) {
-    $delete_id = trim((string)($_POST['delete_id'] ?? ''));
-    
-    if ($delete_id) {
-        try {
-            // Get interface details by ID
-            $db = get_db();
-            $stmt = $db->prepare('SELECT * FROM interfaces WHERE id = ?');
-            $stmt->execute([$delete_id]);
-            $interface = $stmt->fetch(PDO::FETCH_ASSOC);
-            
-            if ($interface) {
-                $result = deleteWireGuardInterface($interface['iface_id'], $interface['name']);
-                if ($result) {
-                    header('Location: ../../create_interface?success=Interface deleted successfully.');
-                } else {
-                    header('Location: ../../create_interface?error=Failed to delete interface.');
-                }
-            } else {
-                header('Location: ../../create_interface?error=Interface not found.');
-            }
-        } catch (Exception $e) {
-            sendToTelegram("Error deleting interface: " . $e->getMessage());
-            header('Location: ../../create_interface?error=Database error occurred.');
+    // Handle delete by ID (from interface table)
+    if (isset($_POST['delete_id'])) {
+        $delete_id = trim((string)($_POST['delete_id'] ?? ''));
+
+        if (!$delete_id) {
+            redirectToCreateInterface('error', 'Invalid interface ID.');
         }
-    } else {
-        header('Location: ../../create_interface?error=Invalid interface ID.');
+
+        $db = get_db();
+        $stmt = $db->prepare('SELECT * FROM interfaces WHERE id = ?');
+        $stmt->execute([$delete_id]);
+        $interface = $stmt->fetch(PDO::FETCH_ASSOC);
+
+        if (!$interface) {
+            redirectToCreateInterface('error', 'Interface not found.');
+        }
+
+        $result = deleteWireGuardInterface($interface['iface_id'], $interface['name']);
+        if ($result) {
+            redirectToCreateInterface('success', 'Interface deleted successfully.');
+        }
+
+        redirectToCreateInterface('error', 'Failed to delete interface. ' . ($error ?? 'Unknown error.'));
     }
-    exit;
+
+    redirectToCreateInterface('error', 'No valid interface action was submitted.');
+} catch (Throwable $e) {
+    $exactError = get_class($e) . ': ' . $e->getMessage();
+    sendToTelegram("Unhandled create interface backend error: " . $exactError);
+    redirectToCreateInterface('error', $exactError);
 }

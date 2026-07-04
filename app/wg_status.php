@@ -157,38 +157,123 @@ function formatBytes($bytes, $precision = 2) {
 }
 ?>
 
+<style>
+    .portal-hero {
+        position: relative;
+        overflow: hidden;
+        border-radius: 28px;
+        border: 1px solid rgba(16, 185, 129, 0.18);
+        background:
+            radial-gradient(circle at 14% 20%, rgba(20, 241, 164, 0.22), transparent 32%),
+            radial-gradient(circle at 86% 18%, rgba(56, 189, 248, 0.16), transparent 30%),
+            linear-gradient(135deg, rgba(15, 23, 42, 0.9), rgba(2, 6, 23, 0.76));
+        box-shadow: 0 26px 90px rgba(0, 0, 0, 0.3);
+    }
+
+    .portal-hero::before {
+        content: "";
+        position: absolute;
+        inset: 0;
+        background:
+            linear-gradient(rgba(16, 185, 129, 0.045) 1px, transparent 1px),
+            linear-gradient(90deg, rgba(16, 185, 129, 0.045) 1px, transparent 1px);
+        background-size: 34px 34px;
+        mask-image: linear-gradient(90deg, black, transparent);
+        pointer-events: none;
+    }
+
+    .portal-button {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: 0.5rem;
+        border-radius: 16px;
+        padding: 0.75rem 1rem;
+        font-weight: 800;
+    }
+
+    .portal-button-primary {
+        color: #fff;
+        background: linear-gradient(135deg, #10b981, #047857);
+        box-shadow: 0 14px 36px rgba(16, 185, 129, 0.22);
+    }
+
+    .portal-button-secondary {
+        color: #e2e8f0;
+        border: 1px solid rgba(148, 163, 184, 0.18);
+        background: rgba(255, 255, 255, 0.06);
+    }
+
+    .portal-shell .glass-card {
+        border-radius: 24px;
+    }
+
+    .portal-shell thead,
+    .portal-shell #rawOutput {
+        background: rgba(2, 6, 23, 0.82) !important;
+    }
+
+    .status-orb {
+        width: 92px;
+        height: 92px;
+        border-radius: 32px;
+        display: grid;
+        place-items: center;
+        background: linear-gradient(135deg, rgba(16, 185, 129, 0.24), rgba(56, 189, 248, 0.12));
+        border: 1px solid rgba(16, 185, 129, 0.28);
+        box-shadow: 0 0 48px rgba(16, 185, 129, 0.18);
+    }
+</style>
+
 <!-- WireGuard Status Page -->
-<div class="p-4 lg:p-6">
-    <!-- Page Header -->
-    <div class="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-6">
-        <div>
-            <h1 class="text-2xl font-bold text-white mb-2">WireGuard Status</h1>
-            <p class="text-gray-400">Monitor interface status, statistics, and performance</p>
-        </div>
-        
-        <!-- Interface Selector & Auto Refresh -->
-        <div class="flex flex-col sm:flex-row gap-3">
-            <div class="flex items-center gap-2">
-                <label class="text-sm font-medium text-gray-300">Interface:</label>
-                <select onchange="changeInterface(this.value)" class="px-3 py-1 bg-gray-700 border border-gray-600 rounded text-white text-sm">
+<div class="p-4 lg:p-6 portal-shell">
+    <section class="portal-hero p-5 lg:p-7 mb-6">
+        <div class="relative z-10 flex flex-col xl:flex-row xl:items-center xl:justify-between gap-6">
+            <div class="flex items-start gap-5">
+                <div class="status-orb hidden md:grid">
+                    <i class="fas fa-shield-alt text-4xl <?= $interface_running ? 'text-green-300' : 'text-red-300' ?>"></i>
+                </div>
+                <div>
+                    <span class="inline-flex items-center px-3 py-1 rounded-full border <?= $interface_running ? 'border-green-400 bg-green-500 text-green-300' : 'border-red-400 bg-red-500 text-red-300' ?> border-opacity-20 bg-opacity-10 text-sm font-bold mb-4">
+                        <span class="w-2 h-2 rounded-full <?= $interface_running ? 'bg-green-400 animate-pulse' : 'bg-red-400' ?> mr-2"></span>
+                        <?= $interface_running ? 'Interface Online' : 'Interface Offline' ?>
+                    </span>
+                    <h1 class="text-3xl lg:text-5xl font-black text-white leading-tight">WireGuard Status Center</h1>
+                    <p class="text-gray-300 text-base lg:text-lg mt-4 max-w-3xl">
+                        Monitor tunnel health, peer activity, traffic, and raw WireGuard output in one portal view.
+                    </p>
+                    <div class="flex flex-wrap gap-3 mt-6">
+                        <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                            Interface: <strong class="text-white"><?= htmlspecialchars($current_interface ?: 'None') ?></strong>
+                        </span>
+                        <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                            Peers: <strong class="text-green-300"><?= count($peers) ?></strong>
+                        </span>
+                        <span class="rounded-2xl bg-white bg-opacity-5 border border-white border-opacity-10 px-4 py-3 text-sm text-gray-300">
+                            State: <strong class="<?= $interface_running ? 'text-green-300' : 'text-red-300' ?>"><?= $interface_running ? 'UP' : 'DOWN' ?></strong>
+                        </span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="flex flex-col sm:flex-row xl:flex-col gap-3 xl:min-w-64">
+                <select onchange="changeInterface(this.value)" class="px-4 py-3 text-white text-sm min-w-48">
                     <?php foreach ($available_interfaces as $iface): ?>
                     <option value="<?= $iface ?>" <?= $iface === $current_interface ? 'selected' : '' ?>>
-                        <?= $iface ?>
+                        <?= htmlspecialchars($iface) ?>
                     </option>
                     <?php endforeach; ?>
                 </select>
-            </div>
-            <div class="flex items-center gap-2">
-                <button onclick="refreshStatus()" class="px-3 py-1 bg-blue-600 hover:bg-blue-700 text-white rounded text-sm transition-colors">
-                    <i class="fas fa-sync-alt mr-1"></i>Refresh
+                <button onclick="refreshStatus()" class="portal-button portal-button-primary">
+                    <i class="fas fa-sync-alt"></i>Refresh Status
                 </button>
-                <label class="flex items-center text-sm text-gray-300">
-                    <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()" class="mr-2">
-                    Auto (30s)
+                <label class="portal-button portal-button-secondary text-sm cursor-pointer">
+                    <input type="checkbox" id="autoRefresh" onchange="toggleAutoRefresh()" class="mr-1">
+                    Auto 30s
                 </label>
             </div>
         </div>
-    </div>
+    </section>
 
     <!-- Success/Error Messages -->
     <?php if ($success_message): ?>
