@@ -502,28 +502,28 @@ iptables -S
 # Winbox Port Forwarding Example
 
 ```bash
-iptables -t nat -A PREROUTING -p tcp --dport 6843 -j DNAT --to-destination 10.20.20.4:8291
-iptables -t nat -A POSTROUTING -p tcp -d 10.20.20.4 --dport 8291 -j MASQUERADE
-iptables -A FORWARD -p tcp -d 10.20.20.4 --dport 8291 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
-iptables -A FORWARD -p tcp -s 10.20.20.4 --sport 8291 -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -t nat -A PREROUTING -p tcp --dport 6843 -j DNAT --to-destination 172.7.0.2:8291
+iptables -t nat -A POSTROUTING -p tcp -d 172.7.0.2 --dport 8291 -j MASQUERADE
+iptables -A FORWARD -p tcp -d 172.7.0.2 --dport 8291 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+iptables -A FORWARD -p tcp -s 172.7.0.2 --sport 8291 -m state --state ESTABLISHED,RELATED -j ACCEPT
 ```
 
 # WebConfig Port Forwarding Example
 
 ```bash
-iptables -t nat -A PREROUTING -p tcp --dport 6842 -j DNAT --to-destination 10.20.20.4:80
-iptables -t nat -A POSTROUTING -p tcp -d 10.20.20.4 --dport 80 -j MASQUERADE
-iptables -A FORWARD -p tcp -d 10.20.20.4 --dport 80 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
-iptables -A FORWARD -p tcp -s 10.20.20.4 --sport 80 -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -t nat -A PREROUTING -p tcp --dport 6842 -j DNAT --to-destination 172.7.0.2:80
+iptables -t nat -A POSTROUTING -p tcp -d 172.7.0.2 --dport 80 -j MASQUERADE
+iptables -A FORWARD -p tcp -d 172.7.0.2 --dport 80 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+iptables -A FORWARD -p tcp -s 172.7.0.2 --sport 80 -m state --state ESTABLISHED,RELATED -j ACCEPT
 ```
 
 # Winbox Port Forwarding Removal Example
 
 ```bash
-iptables -t nat -D PREROUTING -p tcp --dport 6843 -j DNAT --to-destination 10.20.20.4:8291
-iptables -t nat -D POSTROUTING -p tcp -d 10.20.20.4 --dport 8291 -j MASQUERADE
-iptables -D FORWARD -p tcp -d 10.20.20.4 --dport 8291 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
-iptables -D FORWARD -p tcp -s 10.20.20.4 --sport 8291 -m state --state ESTABLISHED,RELATED -j ACCEPT
+iptables -t nat -D PREROUTING -p tcp --dport 6843 -j DNAT --to-destination 172.7.0.2:8291
+iptables -t nat -D POSTROUTING -p tcp -d 172.7.0.2 --dport 8291 -j MASQUERADE
+iptables -D FORWARD -p tcp -d 172.7.0.2 --dport 8291 -m state --state NEW,ESTABLISHED,RELATED -j ACCEPT
+iptables -D FORWARD -p tcp -s 172.7.0.2 --sport 8291 -m state --state ESTABLISHED,RELATED -j ACCEPT
 ```
 
 

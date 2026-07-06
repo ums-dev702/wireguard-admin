@@ -2,7 +2,7 @@
 
 ```bash
 sudo apt update
-sudo apt install wireguard php php-cli php-mysql
+sudo apt install wireguard
 ```
 
 Generate the private key and save it to a file. The following command will generate a new private key and save it to /etc/wireguard/private.key:
